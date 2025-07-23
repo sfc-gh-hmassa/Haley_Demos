@@ -3,8 +3,8 @@
 snowflake-snowpark-python>=1.11.1
 toml>=0.10.2
 
-# Web search capabilities
-duckduckgo-search>=3.9.6
+# Web search capabilities  
+ddgs>=9.4.0
 
 # Data handling and validation
 pydantic>=2.5.0

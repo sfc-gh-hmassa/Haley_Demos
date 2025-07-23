@@ -51,7 +51,12 @@ class WebSearcher:
         """Get DuckDuckGo search function with proper setup"""
         if self._search_function is None:
             try:
-                from duckduckgo_search import DDGS
+                # Try new ddgs package first
+                try:
+                    from ddgs import DDGS
+                except ImportError:
+                    # Fall back to old package name
+                    from duckduckgo_search import DDGS
                 
                 def search_ddg(query: str, max_results: int = 3) -> List[Dict]:
                     """Search using DuckDuckGo"""
@@ -73,7 +78,7 @@ class WebSearcher:
                 
             except ImportError:
                 print("❌ DuckDuckGo search not available")
-                print("💡 Install with: pip install duckduckgo-search")
+                print("💡 Install with: pip install ddgs")
                 self._search_function = self._mock_search
         
         return self._search_function
