@@ -1,8 +1,5 @@
 # 🧠 **Production UNSPSC Classification System** - **REFLECTION EDITION**
 
-## **🌟 Revolutionary Intelligent Reflection System**
-
-This system now features **INTELLIGENT REFLECTION** that ensures optimal classification accuracy:
 
 - ✅ **Always returns 8-digit codes** (commodity or class + 00 padding)
 - ✅ **Intelligent commodity reflection** - decides whether commodity match is good enough
