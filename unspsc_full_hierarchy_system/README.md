@@ -40,7 +40,7 @@ Both are valid 8-digit UNSPSC codes!
    - Sparse data optimization for technician logs
 2. **🌐 Smart Web Search** - Searches DuckDuckGo with intelligent search terms
 3. **📋 Enhanced Technical Summary** - Combines all information with technical context
-4. **🎯 Hierarchical Classification with Reflection** - AI-powered classification:
+4. **🎯 Hierarchical Classification with Reflection** - AI-powered classification: 
    - Segment (2-digit) → Family (4-digit) → Class (6-digit) → Commodity (8-digit)
    - **Self-correction** when hierarchical mismatches detected
    - **Reflection analysis** to validate classification paths
