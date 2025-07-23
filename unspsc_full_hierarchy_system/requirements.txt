@@ -1,0 +1,20 @@
+# Production UNSPSC Classification System Requirements
+# Core Snowflake and LLM dependencies
+snowflake-snowpark-python>=1.11.1
+toml>=0.10.2
+
+# Web search capabilities
+duckduckgo-search>=3.9.6
+
+# Data handling and validation
+pydantic>=2.5.0
+pandas>=2.0.0
+
+# Network and web requests
+requests>=2.31.0
+
+# Cryptography for Snowflake JWT authentication
+cryptography>=41.0.0
+
+# Optional: Enhanced JSON handling
+orjson>=3.9.0 
