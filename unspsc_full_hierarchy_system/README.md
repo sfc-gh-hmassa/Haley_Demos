@@ -139,12 +139,91 @@ production_unspsc_system/
 └── README.md                       # This documentation
 ```
 
+## 🚀 Getting Started
+
+### 1. Environment Setup
+Before using this system, you'll need:
+
+**Snowflake Environment:**
+- Snowflake account with Cortex LLM enabled
+- Access to llama3-70b model (or other supported models)
+- A role with permissions to create/query databases
+
+**UNSPSC Data:**
+Your Snowflake database should contain UNSPSC codes. The expected schema:
+```sql
+-- Example table structure (adjust to your schema)
+CREATE TABLE your_database.your_schema.unspsc_codes (
+    segment_code VARCHAR(2),
+    segment_description VARCHAR,
+    family_code VARCHAR(4), 
+    family_description VARCHAR,
+    class_code VARCHAR(6),
+    class_description VARCHAR,
+    commodity_code VARCHAR(8),
+    commodity_description VARCHAR
+);
+```
+
+### 2. Installation
+```bash
+git clone <your-repo-url>
+cd unspsc_full_hierarchy_system
+pip install -r requirements.txt
+```
+
+### 3. Database Configuration
+Update the database connection in `database/unspsc_database.py`:
+```python
+# Update this line to match your database/schema
+UNSPSC_TABLE = "YOUR_DATABASE.YOUR_SCHEMA.UNSPSC_CODES"
+```
+
+### 4. Test Your Setup
+```bash
+python tests/test_haleyconnect_setup.py
+```
+
 ## 🔧 Configuration
 
-The system automatically uses your **haleyconnect** Snowflake connection:
+### Prerequisites
+1. **Snowflake Account** with Cortex LLM access
+2. **UNSPSC Database** - Import UNSPSC codes into your Snowflake instance
+3. **JWT Authentication** - Private key file for secure connection
+
+### Connection Setup
+The system uses your **haleyconnect** Snowflake connection:
 - Reads from `~/.snowflake/connections.toml`
 - Uses JWT authentication with your private key
-- Connects to your UNSPSC database: `DEMODB.UNSPSC_CODE_PROJECT.UNSPSC_CODES_UNDP`
+- Configure your UNSPSC database path in `database/unspsc_database.py`
+
+#### Setting up your connections.toml:
+```toml
+[haleyconnect]
+account = "your-account-identifier"
+user = "your-username" 
+role = "your-role"
+authenticator = "SNOWFLAKE_JWT"
+private_key_file = "/path/to/your/private_key.pem"
+```
+
+#### Database Configuration:
+Update the database path in `database/unspsc_database.py` to point to your UNSPSC data location.
+
+### Troubleshooting Setup
+**Connection Issues:**
+- Verify your `~/.snowflake/connections.toml` file exists and is properly formatted
+- Check that your private key file path is correct and accessible
+- Ensure your Snowflake account has Cortex LLM enabled
+
+**Database Issues:**
+- Confirm your UNSPSC data is loaded and accessible
+- Test database connectivity: `python tests/debug_database.py`
+- Verify table schema matches expected structure
+
+**Permission Issues:**
+- Ensure your Snowflake role has access to Cortex functions
+- Check database/schema permissions for your UNSPSC data
 
 ## 💻 Usage Examples
 
@@ -329,8 +408,8 @@ python tests/demo_classification_test.py   # Full system demo with multiple prod
 
 This system is **enterprise-ready** and uses your **real Snowflake infrastructure**:
 - ✅ Your haleyconnect connection and credentials
-- ✅ Your UNSPSC database (DEMODB.UNSPSC_CODE_PROJECT.UNSPSC_CODES_UNDP)
-- ✅ Snowflake Cortex LLM (llama3-70b)
+- ✅ Your UNSPSC database (configured in database module)
+- ✅ Snowflake Cortex LLM (llama3-70b and other supported models)
 - ✅ Real web search integration
 - ✅ Advanced reflection and self-correction
 - ✅ Comprehensive validation and error handling
