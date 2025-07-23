@@ -18,7 +18,7 @@ _llm = None
 
 def get_snowflake_session(connection_name: str = "haleyconnect") -> Session:
     """
-    Get Snowflake session using your haleyconnect configuration.
+    Get Snowflake session using existing set up Snowflake configuration.
     
     Returns:
         Session: Active Snowflake session
