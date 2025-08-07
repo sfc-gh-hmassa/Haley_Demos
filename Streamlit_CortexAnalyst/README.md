@@ -32,7 +32,6 @@ The dashboard uses four main data tables:
 ### Prerequisites
 - Snowflake account with Cortex Analyst enabled
 - Python 3.8 or higher
-- Streamlit Cloud account (for deployment)
 
 ### 1. Database Setup
 
@@ -48,31 +47,9 @@ The dashboard uses four main data tables:
    PUT file://cortex_analyst_config.yaml @~/cortex_analyst_config.yaml;
    ```
 
-### 2. Local Development Setup
-
-1. **Clone and install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-2. **Configure Snowflake credentials**:
-   ```bash
-   # Create ~/.streamlit/secrets.toml
-   mkdir -p ~/.streamlit
-   cp secrets.toml ~/.streamlit/secrets.toml
-   
-   # Edit the file with your Snowflake credentials
-   nano ~/.streamlit/secrets.toml
-   ```
-
-3. **Run the application**:
-   ```bash
-   streamlit run streamlit_app.py
-   ```
-
 ### 3. Snowflake Deployment
 
-#### Option A: Streamlit in Snowflake (Recommended)
+####  Streamlit in Snowflake (Recommended)
 
 1. **Upload files to Snowflake stage**:
    ```sql
@@ -96,36 +73,6 @@ The dashboard uses four main data tables:
    ```sql
    GRANT USAGE ON STREAMLIT FINANCIAL_DASHBOARD TO ROLE PUBLIC;
    ```
-
-#### Option B: Streamlit Cloud Deployment
-
-1. **Push to GitHub repository**
-2. **Connect to Streamlit Cloud**
-3. **Configure secrets** in Streamlit Cloud dashboard
-4. **Deploy the application**
-
-## 🔧 Configuration
-
-### Snowflake Connection
-Update `secrets.toml` with your Snowflake credentials:
-
-```toml
-[snowflake]
-user = "your_username"
-password = "your_password"
-account = "your_account_identifier"
-warehouse = "COMPUTE_WH"
-database = "FINANCIAL_DEMO"
-schema = "ANALYTICS"
-```
-
-### Cortex Analyst Configuration
-The `cortex_analyst_config.yaml` file defines:
-- **Semantic model** for financial data
-- **Table relationships** and joins
-- **Calculated measures** for complex metrics
-- **Business glossary** for natural language understanding
-- **Sample questions** for user guidance
 
 ## 💡 Usage Examples
 
