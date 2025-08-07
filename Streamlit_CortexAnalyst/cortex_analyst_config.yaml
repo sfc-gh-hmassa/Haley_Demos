@@ -1,0 +1,299 @@
+# Cortex Analyst Configuration for Financial Analytics
+name: financial_analytics_model
+description: Comprehensive financial analytics semantic model for revenue, expenses, forecasting, and department performance analysis
+
+# Define the logical tables
+tables:
+  - name: revenue_data
+    description: Revenue data by department, region, and product category with forecasting
+    base_table:
+      database: FINANCIAL_DEMO
+      schema: ANALYTICS
+      table: REVENUE_DATA
+    primary_key:
+      columns:
+        - DATE_PERIOD
+        - DEPARTMENT
+        - REGION
+        - PRODUCT_CATEGORY
+    
+    # Dimension columns in the logical table
+    dimensions:
+      - name: date_period
+        description: The date period for the revenue record
+        expr: DATE_PERIOD
+        data_type: DATE
+        unique: false
+      - name: department
+        description: Business department generating revenue (Sales, Marketing, Operations)
+        expr: DEPARTMENT
+        data_type: TEXT
+        unique: false
+      - name: region
+        description: Geographic region (North America, Europe)
+        expr: REGION
+        data_type: TEXT
+        unique: false
+      - name: product_category
+        description: Product category (Software, Services, Hardware)
+        expr: PRODUCT_CATEGORY
+        data_type: TEXT
+        unique: false
+    
+    # Fact columns in the logical table
+    facts:
+      - name: revenue_amount
+        description: Actual revenue amount in dollars
+        expr: REVENUE_AMOUNT
+        data_type: NUMBER
+      - name: forecast_amount
+        description: Forecasted revenue amount in dollars
+        expr: FORECAST_AMOUNT
+        data_type: NUMBER
+    
+    # Business metrics for this table
+    metrics:
+      - name: total_revenue
+        description: Total revenue amount
+        expr: SUM(revenue_amount)
+      - name: total_forecast
+        description: Total forecasted revenue
+        expr: SUM(forecast_amount)
+      - name: revenue_count
+        description: Count of revenue records
+        expr: COUNT(*)
+
+  - name: expense_data
+    description: Operating expense data by category and department with budget comparisons
+    base_table:
+      database: FINANCIAL_DEMO
+      schema: ANALYTICS
+      table: EXPENSE_DATA
+    primary_key:
+      columns:
+        - DATE_PERIOD
+        - EXPENSE_CATEGORY
+        - DEPARTMENT
+    
+    # Dimension columns
+    dimensions:
+      - name: date_period
+        description: The date period for the expense record
+        expr: DATE_PERIOD
+        data_type: DATE
+        unique: false
+      - name: expense_category
+        description: Category of expense (Salaries, Marketing, Office Rent, Technology)
+        expr: EXPENSE_CATEGORY
+        data_type: TEXT
+        unique: false
+      - name: department
+        description: Department incurring the expense
+        expr: DEPARTMENT
+        data_type: TEXT
+        unique: false
+      - name: expense_type
+        description: Type of expense (Fixed, Variable, One-time)
+        expr: EXPENSE_TYPE
+        data_type: TEXT
+        unique: false
+    
+    # Fact columns
+    facts:
+      - name: expense_amount
+        description: Actual expense amount in dollars
+        expr: EXPENSE_AMOUNT
+        data_type: NUMBER
+      - name: budget_amount
+        description: Budgeted expense amount in dollars
+        expr: BUDGET_AMOUNT
+        data_type: NUMBER
+    
+    # Metrics for this table
+    metrics:
+      - name: total_expenses
+        description: Total expense amount
+        expr: SUM(expense_amount)
+      - name: total_budget
+        description: Total budgeted amount
+        expr: SUM(budget_amount)
+      - name: budget_variance
+        description: Variance between actual and budget
+        expr: SUM(expense_amount) - SUM(budget_amount)
+
+  - name: financial_metrics
+    description: Key financial performance indicators and ratios
+    base_table:
+      database: FINANCIAL_DEMO
+      schema: ANALYTICS
+      table: FINANCIAL_METRICS
+    primary_key:
+      columns:
+        - DATE_PERIOD
+        - METRIC_NAME
+    
+    # Dimension columns
+    dimensions:
+      - name: date_period
+        description: The date period for the metric
+        expr: DATE_PERIOD
+        data_type: DATE
+        unique: false
+      - name: metric_name
+        description: Name of the financial metric
+        expr: METRIC_NAME
+        data_type: TEXT
+        unique: false
+      - name: metric_category
+        description: Category of metric (Growth, Profitability, Efficiency, Marketing)
+        expr: METRIC_CATEGORY
+        data_type: TEXT
+        unique: false
+    
+    # Fact columns
+    facts:
+      - name: metric_value
+        description: Actual value of the financial metric
+        expr: METRIC_VALUE
+        data_type: NUMBER
+      - name: target_value
+        description: Target value for the financial metric
+        expr: TARGET_VALUE
+        data_type: NUMBER
+    
+    # Metrics for this table
+    metrics:
+      - name: avg_metric_value
+        description: Average metric value
+        expr: AVG(metric_value)
+      - name: avg_target_value
+        description: Average target value
+        expr: AVG(target_value)
+
+  - name: department_performance
+    description: Department-level performance metrics including revenue, expenses, and productivity
+    base_table:
+      database: FINANCIAL_DEMO
+      schema: ANALYTICS
+      table: DEPARTMENT_PERFORMANCE
+    primary_key:
+      columns:
+        - DATE_PERIOD
+        - DEPARTMENT
+    
+    # Dimension columns
+    dimensions:
+      - name: date_period
+        description: The date period for department performance
+        expr: DATE_PERIOD
+        data_type: DATE
+        unique: false
+      - name: department
+        description: Department name
+        expr: DEPARTMENT
+        data_type: TEXT
+        unique: false
+    
+    # Fact columns
+    facts:
+      - name: department_revenue
+        description: Revenue generated by department
+        expr: REVENUE
+        data_type: NUMBER
+      - name: department_expenses
+        description: Expenses for department
+        expr: EXPENSES
+        data_type: NUMBER
+      - name: department_profit
+        description: Department profit
+        expr: PROFIT
+        data_type: NUMBER
+      - name: employee_count
+        description: Number of employees in department
+        expr: EMPLOYEE_COUNT
+        data_type: NUMBER
+      - name: productivity_score
+        description: Department productivity score
+        expr: PRODUCTIVITY_SCORE
+        data_type: NUMBER
+    
+    # Metrics for this table
+    metrics:
+      - name: total_department_revenue
+        description: Total department revenue
+        expr: SUM(department_revenue)
+      - name: total_department_expenses
+        description: Total department expenses
+        expr: SUM(department_expenses)
+      - name: avg_productivity
+        description: Average productivity score
+        expr: AVG(productivity_score)
+
+# Define relationships between tables
+relationships:
+  - name: revenue_to_department_performance
+    left_table: revenue_data
+    right_table: department_performance
+    relationship_columns:
+      - left_column: date_period
+        right_column: date_period
+      - left_column: department
+        right_column: department
+    join_type: left_outer
+    relationship_type: many_to_one
+  
+  - name: expense_to_department_performance
+    left_table: expense_data
+    right_table: department_performance
+    relationship_columns:
+      - left_column: date_period
+        right_column: date_period
+      - left_column: department
+        right_column: department
+    join_type: left_outer
+    relationship_type: many_to_one
+
+# Verified queries with example questions and queries that answer them
+verified_queries:
+  - name: total_revenue_q3_2024
+    question: What was our total revenue in Q3 2024?
+    verified_at: 1703980800
+    verified_by: Financial Analyst
+    sql: |
+      SELECT SUM(REVENUE_AMOUNT) as total_revenue
+      FROM FINANCIAL_DEMO.ANALYTICS.REVENUE_DATA
+      WHERE DATE_PERIOD >= '2024-07-01' AND DATE_PERIOD <= '2024-09-30'
+      AND REVENUE_AMOUNT IS NOT NULL
+  
+  - name: top_expense_categories
+    question: What are our biggest expense categories?
+    verified_at: 1703980800
+    verified_by: Financial Analyst
+    sql: |
+      SELECT EXPENSE_CATEGORY, SUM(EXPENSE_AMOUNT) as total_expenses
+      FROM FINANCIAL_DEMO.ANALYTICS.EXPENSE_DATA
+      WHERE DATE_PERIOD >= DATEADD(month, -3, CURRENT_DATE())
+      GROUP BY EXPENSE_CATEGORY
+      ORDER BY total_expenses DESC
+      LIMIT 5
+  
+  - name: revenue_growth_rate
+    question: What is our revenue growth rate?
+    verified_at: 1703980800
+    verified_by: Financial Analyst
+    sql: |
+      SELECT METRIC_VALUE * 100 as growth_rate_percent
+      FROM FINANCIAL_DEMO.ANALYTICS.FINANCIAL_METRICS
+      WHERE METRIC_NAME = 'Revenue Growth Rate'
+      ORDER BY DATE_PERIOD DESC
+      LIMIT 1
+  
+  - name: department_performance_latest
+    question: Show me department performance for the latest month
+    verified_at: 1703980800
+    verified_by: Financial Analyst
+    sql: |
+      SELECT DEPARTMENT, REVENUE, EXPENSES, PROFIT, PRODUCTIVITY_SCORE
+      FROM FINANCIAL_DEMO.ANALYTICS.DEPARTMENT_PERFORMANCE
+      WHERE DATE_PERIOD = (SELECT MAX(DATE_PERIOD) FROM FINANCIAL_DEMO.ANALYTICS.DEPARTMENT_PERFORMANCE)
+      ORDER BY PROFIT DESC 
