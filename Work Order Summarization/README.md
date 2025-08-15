@@ -101,25 +101,22 @@ Follow these steps in order to set up the complete system:
    - **Cortex Analyst**: Select "Enterprise Work Order Analyst"
    - **SQL Tool**: Select procedure `CREATE_ENTERPRISE_SUMMARY_IF_MISSING`
 
-5. **Add Custom Instructions** (copy this exactly):
+5. **Add Custom Orchestration Instructions** (copy this for example):
    ```
-   You are an enterprise work order management assistant. Follow this workflow:
+   Orchestration Instructions:
+   
+   When asked business questions about work order:
+   Use Work_Order_Analyst to identify proper tables to pull records from
 
-   1. ALWAYS start by using the Cortex Analyst to answer user questions about work orders.
+   When asked to generate a summary on work order
+   First use Work_Order_Analyst to see if a summary already exists for the work order asked by the user
+   If a summary exists, then return it.
+   If no summary exists from Cortex Analyst, then use the Create_Summary_If_Missing stored procedure tool to generate that summary After generating the summary, use cortex analyst to pull that summary for the end user
 
-   2. If a user asks for a work order summary that doesn't exist:
-      - First, inform them the summary doesn't exist
-      - Use the CREATE_ENTERPRISE_SUMMARY_IF_MISSING tool to generate it
-      - Then use Cortex Analyst again to retrieve the newly created summary
-
-   3. For general work order questions (costs, facilities, equipment, etc.), use Cortex Analyst directly.
-
-   4. Always prioritize using existing data first, then create summaries only when specifically requested or when they don't exist.
-
-   5. Provide business-focused responses that highlight costs, priorities, and strategic implications.
+   After generating the summary, provide the summary response and tell the user the summary had to be gen
    ```
 
-6. **Save and Test** the complete workflow
+7. **Save and Test** the complete workflow
 
 ## 🧪 Testing the System
 
@@ -159,13 +156,6 @@ For automated batch processing of work orders:
    - Processes only high-value work orders (≥$25K) with configurable thresholds
      - Comprehensive testing framework to validate pipeline behavior
 
-## 🎯 Key Business Use Cases
-
-1. **Executive Reporting**: Get instant insights into high-cost maintenance operations
-2. **Operational Efficiency**: Identify facilities with highest maintenance costs
-3. **Risk Management**: Track critical work orders requiring immediate attention
-4. **Compliance Monitoring**: Monitor work orders requiring regulatory compliance
-5. **Resource Planning**: Analyze labor hours and contractor requirements
 
 ## 📁 Folder Structure
 
@@ -185,27 +175,6 @@ Enterprise Demo New/
     └── test_pipeline_end_to_end.sql          # End-to-end testing script
 ```
 
-## 🚨 Troubleshooting
-
-### Common Issues
-
-1. **Semantic View Creation Fails**:
-   - Verify YAML file uploaded correctly
-   - Check database and schema names match
-
-2. **Agent Not Using Tools Correctly**:
-   - Ensure Custom Instructions are copied exactly
-   - Verify both tools are added and configured
-
-3. **Data Loading Issues**:
-   - Check CSV file format and encoding
-   - Verify stage permissions
-
-### Getting Help
-
-- Review the setup.sql comments for detailed instructions
-- Check Snowflake documentation for Cortex AI features
-- Ensure your account has necessary Cortex AI privileges
 
 ## 🎉 Success Metrics
 
