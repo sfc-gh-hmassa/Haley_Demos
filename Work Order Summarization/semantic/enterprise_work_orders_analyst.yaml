@@ -1,0 +1,317 @@
+name: ENTERPRISE_WORK_ORDERS_SEMANTIC
+description: Semantic model for enterprise work order cost analysis and management
+
+tables:
+  # Primary work orders table with cost-focused dimensions
+  - name: enterprise_work_orders
+    description: Master table of all work orders with comprehensive cost and business metrics
+    base_table:
+      database: DEMODB
+      schema: WORK_ORDER_MANAGEMENT
+      table: ENTERPRISE_WORK_ORDERS
+    primary_key:
+      columns:
+        - work_order_id
+    dimensions:
+      # Identifiers
+      - name: work_order_id
+        description: Unique work order identifier
+        expr: WORK_ORDER_ID
+        data_type: TEXT
+        unique: true
+      
+      # Equipment and Location
+      - name: equipment_type
+        description: Type of equipment requiring maintenance
+        expr: EQUIPMENT_TYPE
+        data_type: TEXT
+      - name: facility
+        description: Facility where work order is located
+        expr: FACILITY
+        data_type: TEXT
+      
+      # Status and Priority
+      - name: status
+        description: Current status of the work order
+        expr: STATUS
+        data_type: TEXT
+      - name: priority
+        description: Priority level of the work order
+        expr: PRIORITY
+        data_type: TEXT
+      - name: urgency
+        description: Urgency level indicating time sensitivity
+        expr: URGENCY
+        data_type: TEXT
+      
+      # Risk and Compliance
+      - name: safety_risk_level
+        description: Safety risk level assessment
+        expr: SAFETY_RISK_LEVEL
+        data_type: TEXT
+      - name: failure_mode
+        description: Type of failure or maintenance required
+        expr: FAILURE_MODE
+        data_type: TEXT
+      - name: compliance_required
+        description: Whether regulatory compliance is required
+        expr: COMPLIANCE_REQUIRED
+        data_type: BOOLEAN
+      - name: specialized_skills_required
+        description: Whether specialized skills are needed
+        expr: SPECIALIZED_SKILLS_REQUIRED
+        data_type: BOOLEAN
+      
+    facts:
+      # Cost Facts (Key for enterprise analysis)
+      - name: total_cost
+        description: Total cost of the work order including all expenses
+        expr: TOTAL_COST
+        data_type: NUMBER
+      - name: labor_cost
+        description: Labor costs for the work order
+        expr: LABOR_COST
+        data_type: NUMBER
+      - name: parts_cost
+        description: Parts and materials costs
+        expr: PARTS_COST
+        data_type: NUMBER
+      - name: contractor_cost
+        description: External contractor costs
+        expr: CONTRACTOR_COST
+        data_type: NUMBER
+      - name: labor_hours
+        description: Total labor hours required
+        expr: LABOR_HOURS
+        data_type: NUMBER
+      - name: business_impact_score
+        description: Business impact score from 1-10
+        expr: BUSINESS_IMPACT_SCORE
+        data_type: NUMBER
+      - name: estimated_downtime_hours
+        description: Estimated equipment downtime in hours
+        expr: ESTIMATED_DOWNTIME_HOURS
+        data_type: NUMBER
+      
+    time_dimensions:
+      # Date dimensions
+      - name: created_date
+        description: Date when work order was created
+        expr: CREATED_DATE
+        data_type: DATE
+      - name: scheduled_date
+        description: Scheduled completion date for work order
+        expr: SCHEDULED_DATE
+        data_type: DATE
+
+    metrics:
+      # Business metrics for cost analysis
+      - name: total_work_order_cost
+        description: Sum of all work order costs
+        expr: SUM(enterprise_work_orders.total_cost)
+      - name: average_cost_per_work_order
+        description: Average cost per work order
+        expr: AVG(enterprise_work_orders.total_cost)
+      - name: total_labor_hours
+        description: Sum of all labor hours
+        expr: SUM(enterprise_work_orders.labor_hours)
+      - name: high_cost_work_order_count
+        description: Count of work orders over $25,000
+        expr: COUNT(CASE WHEN enterprise_work_orders.total_cost >= 25000 THEN 1 END)
+      - name: critical_cost_work_order_count
+        description: Count of work orders over $50,000
+        expr: COUNT(CASE WHEN enterprise_work_orders.total_cost >= 50000 THEN 1 END)
+
+  # AI-generated summaries table (simplified structure)
+  - name: work_order_summaries
+    description: AI-generated executive summaries for work orders
+    base_table:
+      database: DEMODB
+      schema: WORK_ORDER_MANAGEMENT
+      table: WORK_ORDER_SUMMARIES
+    primary_key:
+      columns:
+        - work_order_id
+    dimensions:
+      - name: work_order_id
+        description: Work order identifier (foreign key)
+        expr: WORK_ORDER_ID
+        data_type: TEXT
+        unique: true
+      - name: summary
+        description: AI-generated executive summary
+        expr: SUMMARY
+        data_type: TEXT
+
+    time_dimensions:
+      - name: created_timestamp
+        description: When the summary was generated
+        expr: CREATED_TIMESTAMP
+        data_type: TIMESTAMP
+
+# Relationships between tables
+relationships:
+  - name: work_orders_to_summaries
+    left_table: enterprise_work_orders
+    right_table: work_order_summaries
+    relationship_columns:
+      - left_column: work_order_id
+        right_column: work_order_id
+    join_type: left_outer
+    relationship_type: one_to_one
+
+# Verified queries for common enterprise scenarios
+verified_queries:
+  # Business Information Query - Comprehensive work order business details
+  - name: work_order_business_information
+    question: Show me the business information for work orders including costs, priority, and impact
+    sql: |
+      SELECT 
+        w.work_order_id,
+        w.equipment_type,
+        w.facility,
+        w.status,
+        w.priority,
+        w.urgency,
+        w.total_cost,
+        w.labor_cost,
+        w.parts_cost,
+        w.contractor_cost,
+        w.labor_hours,
+        w.business_impact_score,
+        w.safety_risk_level,
+        w.estimated_downtime_hours,
+        w.failure_mode,
+        w.compliance_required,
+        w.specialized_skills_required,
+        w.created_date,
+        w.scheduled_date,
+        CASE 
+          WHEN w.total_cost >= 50000 THEN 'Critical Cost'
+          WHEN w.total_cost >= 25000 THEN 'High Cost'
+          WHEN w.total_cost >= 10000 THEN 'Medium Cost'
+          ELSE 'Standard Cost'
+        END AS cost_category
+      FROM __enterprise_work_orders w
+      WHERE w.status IN ('Open', 'In Progress', 'Pending Approval')
+      ORDER BY w.total_cost DESC, w.business_impact_score DESC
+      LIMIT 25
+
+  # Summary Query - Focus on AI-generated summaries
+  - name: work_order_summaries
+    question: Show me work order summaries and when they were created
+    sql: |
+      SELECT 
+        s.work_order_id,
+        w.equipment_type,
+        w.facility,
+        w.total_cost,
+        w.urgency,
+        w.status,
+        s.summary AS executive_summary,
+        s.created_timestamp AS summary_created,
+        DATEDIFF('day', w.created_date, s.created_timestamp) AS days_to_summarize
+      FROM __work_order_summaries s
+      INNER JOIN __enterprise_work_orders w
+        ON s.work_order_id = w.work_order_id
+      ORDER BY s.created_timestamp DESC
+      LIMIT 20
+
+  - name: work_order_summary_by_id
+    question: Show me the executive summary for a specific work order
+    sql: |
+      SELECT 
+        w.work_order_id,
+        w.equipment_type,
+        w.total_cost,
+        w.urgency,
+        w.business_impact_score,
+        COALESCE(s.summary, 'No executive summary found - use CREATE_ENTERPRISE_SUMMARY_IF_MISSING procedure to generate') AS executive_summary,
+        s.created_timestamp
+      FROM __enterprise_work_orders w
+      LEFT JOIN __work_order_summaries s
+        ON w.work_order_id = s.work_order_id
+      WHERE w.work_order_id = '{work_order_id}'
+
+  - name: cost_analysis_by_facility
+    question: What is the cost breakdown by facility for high-cost work orders?
+    sql: |
+      SELECT 
+        w.facility,
+        COUNT(*) AS work_order_count,
+        SUM(w.total_cost) AS total_facility_cost,
+        AVG(w.total_cost) AS average_cost,
+        MAX(w.total_cost) AS highest_cost,
+        COUNT(s.work_order_id) AS summarized_count
+      FROM __enterprise_work_orders w
+      LEFT JOIN __work_order_summaries s
+        ON w.work_order_id = s.work_order_id
+      WHERE w.total_cost >= 15000
+      GROUP BY w.facility
+      ORDER BY total_facility_cost DESC
+
+  - name: critical_work_orders_needing_attention
+    question: Which critical work orders need executive attention?
+    sql: |
+      SELECT 
+        w.work_order_id,
+        w.equipment_type,
+        w.facility,
+        w.total_cost,
+        w.urgency,
+        w.safety_risk_level,
+        w.business_impact_score,
+        DATEDIFF('day', w.created_date, CURRENT_DATE()) AS days_open,
+        CASE 
+          WHEN s.work_order_id IS NULL THEN 'No Summary - Needs Executive Review'
+          ELSE s.summary
+        END AS status_or_summary
+      FROM __enterprise_work_orders w
+      LEFT JOIN __work_order_summaries s
+        ON w.work_order_id = s.work_order_id
+      WHERE (w.total_cost >= 50000 OR w.urgency = 'Critical' OR w.safety_risk_level = 'Critical')
+        AND w.status IN ('Open', 'In Progress', 'Pending Approval')
+      ORDER BY 
+        CASE w.urgency WHEN 'Critical' THEN 1 ELSE 2 END,
+        w.total_cost DESC
+
+  - name: equipment_cost_analysis
+    question: What equipment types have the highest maintenance costs?
+    sql: |
+      SELECT 
+        w.equipment_type,
+        COUNT(*) AS work_order_count,
+        SUM(w.total_cost) AS total_equipment_cost,
+        AVG(w.total_cost) AS average_cost,
+        SUM(w.labor_cost) AS total_labor_cost,
+        SUM(w.parts_cost) AS total_parts_cost,
+        COUNT(CASE WHEN w.total_cost >= 25000 THEN 1 END) AS high_cost_count,
+        COUNT(s.work_order_id) AS summarized_count
+      FROM __enterprise_work_orders w
+      LEFT JOIN __work_order_summaries s
+        ON w.work_order_id = s.work_order_id
+      GROUP BY w.equipment_type
+      HAVING SUM(w.total_cost) >= 25000
+      ORDER BY total_equipment_cost DESC
+
+  - name: unsummarized_high_value_work_orders
+    question: Which high-value work orders still need executive summaries?
+    sql: |
+      SELECT 
+        w.work_order_id,
+        w.equipment_type,
+        w.facility,
+        w.total_cost,
+        w.urgency,
+        w.status,
+        w.business_impact_score,
+        DATEDIFF('day', w.created_date, CURRENT_DATE()) AS days_open,
+        'Use CREATE_ENTERPRISE_SUMMARY_IF_MISSING to generate executive summary' AS action_needed
+      FROM __enterprise_work_orders w
+      WHERE w.total_cost >= 25000
+        AND w.status IN ('Open', 'In Progress', 'Pending Approval')
+        AND NOT EXISTS (
+            SELECT 1 FROM __work_order_summaries s
+            WHERE s.work_order_id = w.work_order_id
+        )
+      ORDER BY w.total_cost DESC 
