@@ -1,4 +1,4 @@
-# Enterprise Work Order Management with Snowflake Cortex AI
+# Enterprise Work Order Summarization with Snowflake Cortex AI
 
 This demo showcases an enterprise-grade work order management system using Snowflake's Cortex AI capabilities, including intelligent agents that can analyze work orders and create AI-generated summaries on demand.
 
