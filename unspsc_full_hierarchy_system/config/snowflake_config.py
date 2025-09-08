@@ -25,8 +25,16 @@ def get_snowflake_session(connection_name: str = "haleyconnect") -> Session:
     """
     global _session
     
+    # Test existing session if it exists
     if _session is not None:
-        return _session
+        try:
+            # Test if session is still valid
+            _session.sql("SELECT 1").collect()
+            return _session
+        except Exception:
+            # Session expired or invalid, create a new one
+            print("🔄 Session expired, creating new connection...")
+            _session = None
     
     print(f"🔗 Connecting to Snowflake using {connection_name}...")
     
@@ -119,11 +127,21 @@ def close_session():
     global _session, _llm
     
     if _session:
-        _session.close()
+        try:
+            _session.close()
+        except Exception:
+            pass  # Ignore errors when closing
         _session = None
         print("🧹 Snowflake session closed")
     
     _llm = None
+
+def refresh_session(connection_name: str = "haleyconnect"):
+    """Force refresh of the Snowflake session"""
+    global _session, _llm
+    print("🔄 Forcing session refresh...")
+    close_session()
+    return get_snowflake_session(connection_name)
 
 def test_connection(connection_name: str = "haleyconnect") -> bool:
     """

@@ -8,12 +8,14 @@ from .snowflake_config import (
     get_snowflake_session,
     get_snowflake_llm,
     close_session,
-    test_connection
+    test_connection,
+    refresh_session
 )
 
 __all__ = [
     'get_snowflake_session',
     'get_snowflake_llm', 
     'close_session',
-    'test_connection'
+    'test_connection',
+    'refresh_session'
 ] 
