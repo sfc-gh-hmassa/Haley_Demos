@@ -1,0 +1,333 @@
+version: 1
+name: "retail_analytics_semantic_model"
+description: "Comprehensive semantic model for retail analytics covering sales, customers, products, and operations"
+
+entities:
+  - name: customers
+    description: "Customer information and demographics"
+    table: customers
+    columns:
+      - name: customer_id
+        data_type: NUMBER
+        description: "Unique identifier for customers"
+        primary_key: true
+      - name: customer_name
+        data_type: VARCHAR
+        description: "Full name of the customer"
+      - name: email
+        data_type: VARCHAR
+        description: "Customer email address"
+      - name: registration_date
+        data_type: DATE
+        description: "Date when customer registered"
+      - name: customer_segment
+        data_type: VARCHAR
+        description: "Customer segment classification"
+
+  - name: products
+    description: "Product catalog and information"
+    table: products
+    columns:
+      - name: product_id
+        data_type: NUMBER
+        description: "Unique identifier for products"
+        primary_key: true
+      - name: product_name
+        data_type: VARCHAR
+        description: "Name of the product"
+      - name: category
+        data_type: VARCHAR
+        description: "Product category"
+      - name: price
+        data_type: NUMBER
+        description: "Current product price"
+      - name: cost
+        data_type: NUMBER
+        description: "Product cost"
+      - name: brand
+        data_type: VARCHAR
+        description: "Product brand"
+
+  - name: orders
+    description: "Customer orders and transactions"
+    table: orders
+    columns:
+      - name: order_id
+        data_type: NUMBER
+        description: "Unique identifier for orders"
+        primary_key: true
+      - name: customer_id
+        data_type: NUMBER
+        description: "Customer who placed the order"
+        foreign_key: customers.customer_id
+      - name: order_date
+        data_type: DATE
+        description: "Date when order was placed"
+      - name: order_status
+        data_type: VARCHAR
+        description: "Current status of the order"
+      - name: total_amount
+        data_type: NUMBER
+        description: "Total order amount"
+
+  - name: order_items
+    description: "Individual items within orders"
+    table: order_items
+    columns:
+      - name: order_item_id
+        data_type: NUMBER
+        description: "Unique identifier for order items"
+        primary_key: true
+      - name: order_id
+        data_type: NUMBER
+        description: "Associated order"
+        foreign_key: orders.order_id
+      - name: product_id
+        data_type: NUMBER
+        description: "Product in the order"
+        foreign_key: products.product_id
+      - name: quantity
+        data_type: NUMBER
+        description: "Quantity ordered"
+      - name: price
+        data_type: NUMBER
+        description: "Price per unit at time of order"
+
+  - name: sales
+    description: "Sales transactions and performance data"
+    table: sales
+    columns:
+      - name: sale_id
+        data_type: NUMBER
+        description: "Unique identifier for sales records"
+        primary_key: true
+      - name: customer_id
+        data_type: NUMBER
+        description: "Customer involved in sale"
+        foreign_key: customers.customer_id
+      - name: product_id
+        data_type: NUMBER
+        description: "Product sold"
+        foreign_key: products.product_id
+      - name: employee_id
+        data_type: NUMBER
+        description: "Employee who made the sale"
+        foreign_key: employees.employee_id
+      - name: region_id
+        data_type: NUMBER
+        description: "Region where sale occurred"
+        foreign_key: regions.region_id
+      - name: sale_date
+        data_type: DATE
+        description: "Date of the sale"
+      - name: amount
+        data_type: NUMBER
+        description: "Sale amount"
+
+  - name: regions
+    description: "Geographic regions for sales territories"
+    table: regions
+    columns:
+      - name: region_id
+        data_type: NUMBER
+        description: "Unique identifier for regions"
+        primary_key: true
+      - name: region_name
+        data_type: VARCHAR
+        description: "Name of the region"
+      - name: country
+        data_type: VARCHAR
+        description: "Country of the region"
+      - name: manager_id
+        data_type: NUMBER
+        description: "Regional manager"
+
+  - name: employees
+    description: "Employee information and sales staff"
+    table: employees
+    columns:
+      - name: employee_id
+        data_type: NUMBER
+        description: "Unique identifier for employees"
+        primary_key: true
+      - name: employee_name
+        data_type: VARCHAR
+        description: "Full name of employee"
+      - name: department
+        data_type: VARCHAR
+        description: "Employee department"
+      - name: hire_date
+        data_type: DATE
+        description: "Date employee was hired"
+      - name: manager_id
+        data_type: NUMBER
+        description: "Employee's manager"
+
+  - name: inventory
+    description: "Product inventory and stock levels"
+    table: inventory
+    columns:
+      - name: inventory_id
+        data_type: NUMBER
+        description: "Unique identifier for inventory records"
+        primary_key: true
+      - name: product_id
+        data_type: NUMBER
+        description: "Product being tracked"
+        foreign_key: products.product_id
+      - name: current_stock
+        data_type: NUMBER
+        description: "Current stock level"
+      - name: reorder_point
+        data_type: NUMBER
+        description: "Minimum stock level before reorder"
+      - name: last_updated
+        data_type: TIMESTAMP
+        description: "When inventory was last updated"
+
+  - name: customer_metrics
+    description: "Derived customer analytics and metrics"
+    table: customer_metrics
+    columns:
+      - name: customer_id
+        data_type: NUMBER
+        description: "Customer identifier"
+        foreign_key: customers.customer_id
+      - name: first_order_date
+        data_type: DATE
+        description: "Date of customer's first order"
+      - name: last_order_date
+        data_type: DATE
+        description: "Date of customer's most recent order"
+      - name: total_orders
+        data_type: NUMBER
+        description: "Total number of orders placed"
+      - name: lifetime_value
+        data_type: NUMBER
+        description: "Customer lifetime value"
+
+metrics:
+  - name: total_sales
+    description: "Sum of all sales amounts"
+    sql: "SUM(sales.amount)"
+    data_type: NUMBER
+    
+  - name: average_order_value
+    description: "Average value of orders"
+    sql: "AVG(orders.total_amount)"
+    data_type: NUMBER
+    
+  - name: order_count
+    description: "Count of orders"
+    sql: "COUNT(orders.order_id)"
+    data_type: NUMBER
+    
+  - name: customer_count
+    description: "Count of unique customers"
+    sql: "COUNT(DISTINCT customers.customer_id)"
+    data_type: NUMBER
+    
+  - name: revenue
+    description: "Revenue from order items"
+    sql: "SUM(order_items.price * order_items.quantity)"
+    data_type: NUMBER
+    
+  - name: monthly_sales
+    description: "Sales aggregated by month"
+    sql: "SUM(sales.amount)"
+    data_type: NUMBER
+    time_dimension: "DATE_TRUNC('month', sales.sale_date)"
+    
+  - name: product_revenue
+    description: "Revenue by product"
+    sql: "SUM(order_items.price * order_items.quantity)"
+    data_type: NUMBER
+    
+  - name: inventory_status
+    description: "Current inventory status indicator"
+    sql: "CASE WHEN inventory.current_stock <= inventory.reorder_point THEN 'REORDER' ELSE 'OK' END"
+    data_type: VARCHAR
+
+relationships:
+  - name: customer_orders
+    from: customers
+    to: orders
+    type: one_to_many
+    join_key: customer_id
+    
+  - name: order_items_relationship
+    from: orders
+    to: order_items
+    type: one_to_many
+    join_key: order_id
+    
+  - name: product_order_items
+    from: products
+    to: order_items
+    type: one_to_many
+    join_key: product_id
+    
+  - name: sales_customer
+    from: customers
+    to: sales
+    type: one_to_many
+    join_key: customer_id
+    
+  - name: sales_product
+    from: products
+    to: sales
+    type: one_to_many
+    join_key: product_id
+    
+  - name: sales_employee
+    from: employees
+    to: sales
+    type: one_to_many
+    join_key: employee_id
+    
+  - name: sales_region
+    from: regions
+    to: sales
+    type: one_to_many
+    join_key: region_id
+    
+  - name: product_inventory
+    from: products
+    to: inventory
+    type: one_to_one
+    join_key: product_id
+    
+  - name: customer_metrics_relationship
+    from: customers
+    to: customer_metrics
+    type: one_to_one
+    join_key: customer_id
+
+time_dimensions:
+  - name: order_date
+    description: "Order placement date"
+    column: orders.order_date
+    type: DATE
+    
+  - name: sale_date
+    description: "Sale transaction date"
+    column: sales.sale_date
+    type: DATE
+    
+  - name: registration_date
+    description: "Customer registration date"
+    column: customers.registration_date
+    type: DATE
+
+filters:
+  - name: recent_orders
+    description: "Orders from the last 30 days"
+    sql: "orders.order_date >= DATEADD(day, -30, CURRENT_DATE())"
+    
+  - name: active_customers
+    description: "Customers with orders in the last year"
+    sql: "customers.customer_id IN (SELECT DISTINCT customer_id FROM orders WHERE order_date >= DATEADD(year, -1, CURRENT_DATE()))"
+    
+  - name: high_value_orders
+    description: "Orders above average value"
+    sql: "orders.total_amount > (SELECT AVG(total_amount) FROM orders)"
