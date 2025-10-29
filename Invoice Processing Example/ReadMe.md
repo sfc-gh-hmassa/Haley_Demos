@@ -18,7 +18,7 @@ This project demonstrates how to:
 - Creates a Cortex Search Service for semantic product matching
 - Sets up the foundation for negotiation analysis
 
-### 2. Quote Negotiation Analyzer (`quote_negotiation_analyzer.py`)
+### 2. Quote Negotiation Analyzer (`clean_streamlit_with_pdf_viewer.py`)
 - Streamlit web application for analyzing new purchase orders
 - Uploads and extracts data from quote PDFs
 - Compares against historical invoices using semantic search
