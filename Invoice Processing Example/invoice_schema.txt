@@ -1,0 +1,15 @@
+{
+  "invoice_id": "...",
+  "vendor": "...",
+  "date": "YYYY-MM-DD",
+  "total": 0.00,
+  "line_items": [
+    {
+      "qty": 0,
+      "description": "...",
+      "unit_price": 0.00,
+      "amount": 0.00,
+      "page_number": 1
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+ticket_id,title,description,priority,status,created_at,component
+JIRA-101,Login error in portal,Login error in portal. Detailed investigation revealed related service behavior causing this issue.,High,In Progress,2025-03-16,UI
+JIRA-102,UI misalignment in dashboard,UI misalignment in dashboard. Detailed investigation revealed related service behavior causing this issue.,High,Closed,2025-01-13,Data
+JIRA-103,Slow database queries,Slow database queries. Detailed investigation revealed related service behavior causing this issue.,Low,Closed,2025-01-01,Data
+JIRA-104,Email notifications not sending,Email notifications not sending. Detailed investigation revealed related service behavior causing this issue.,Medium,Closed,2025-03-20,Backend
+JIRA-105,Memory leak in container,Memory leak in container. Detailed investigation revealed related service behavior causing this issue.,Low,In Progress,2025-03-07,UI
+JIRA-106,Error parsing CSV import,Error parsing CSV import. Detailed investigation revealed related service behavior causing this issue.,Low,In Progress,2025-02-17,Data
+JIRA-107,Cache invalidation bug,Cache invalidation bug. Detailed investigation revealed related service behavior causing this issue.,Medium,Open,2025-01-29,Security
+JIRA-108,Incorrect totals in sales report,Incorrect totals in sales report. Detailed investigation revealed related service behavior causing this issue.,Medium,Closed,2025-01-17,Integration
+JIRA-109,Dark mode toggle broken,Dark mode toggle broken. Detailed investigation revealed related service behavior causing this issue.,Medium,In Progress,2025-03-07,UI
+JIRA-110,API rate limit exceeded,API rate limit exceeded. Detailed investigation revealed related service behavior causing this issue.,Medium,Open,2025-02-25,Infra
+JIRA-111,Graph not rendering,Graph not rendering. Detailed investigation revealed related service behavior causing this issue.,Low,Open,2025-03-18,Security
+JIRA-112,Load balancer misconfigured,Load balancer misconfigured. Detailed investigation revealed related service behavior causing this issue.,Medium,In Progress,2025-03-17,Analytics
+JIRA-113,Timeout error on report API,Timeout error on report API. Detailed investigation revealed related service behavior causing this issue.,Low,In Progress,2025-02-17,Backend
+JIRA-114,Search results inaccurate,Search results inaccurate. Detailed investigation revealed related service behavior causing this issue.,Low,In Progress,2025-01-23,UI
+JIRA-115,CSV export missing columns,CSV export missing columns. Detailed investigation revealed related service behavior causing this issue.,Medium,Closed,2025-01-25,Backend
+JIRA-116,Schema mismatch in ETL,Schema mismatch in ETL. Detailed investigation revealed related service behavior causing this issue.,Medium,Open,2025-01-19,Analytics
+JIRA-117,Permissions not applied,Permissions not applied. Detailed investigation revealed related service behavior causing this issue.,Medium,Open,2025-03-24,UI
+JIRA-118,Token expiry issue,Token expiry issue. Detailed investigation revealed related service behavior causing this issue.,High,In Progress,2025-01-14,Infra
+JIRA-119,Dashboard not loading,Dashboard not loading. Detailed investigation revealed related service behavior causing this issue.,Low,Open,2025-03-27,Integration
+JIRA-120,Mobile layout broken,Mobile layout broken. Detailed investigation revealed related service behavior causing this issue.,Low,Open,2025-02-20,UI
+JIRA-121,Duplicate records in analytics,Duplicate records in analytics. Detailed investigation revealed related service behavior causing this issue.,Medium,Closed,2025-02-26,UI
+JIRA-122,Integration service timeout,Integration service timeout. Detailed investigation revealed related service behavior causing this issue.,Medium,Open,2025-02-05,UI
+JIRA-123,Webhook failing to deliver,Webhook failing to deliver. Detailed investigation revealed related service behavior causing this issue.,Medium,Closed,2025-01-05,Integration
+JIRA-124,File upload limit exceeded,File upload limit exceeded. Detailed investigation revealed related service behavior causing this issue.,Low,Closed,2025-01-05,Infra
+JIRA-125,Slow startup on containers,Slow startup on containers. Detailed investigation revealed related service behavior causing this issue.,High,Open,2025-03-19,Data
+JIRA-126,Pipeline job failure,Pipeline job failure. Detailed investigation revealed related service behavior causing this issue.,Medium,Closed,2025-01-12,Data
+JIRA-127,UI buttons unresponsive,UI buttons unresponsive. Detailed investigation revealed related service behavior causing this issue.,Low,In Progress,2025-03-27,Infra
+JIRA-128,Missing metrics in KPI report,Missing metrics in KPI report. Detailed investigation revealed related service behavior causing this issue.,Medium,Open,2025-01-22,Analytics
+JIRA-129,Session timeout too short,Session timeout too short. Detailed investigation revealed related service behavior causing this issue.,Low,Open,2025-01-20,UI
+JIRA-130,Font rendering issue,Font rendering issue. Detailed investigation revealed related service behavior causing this issue.,Low,Closed,2025-01-28,Infra
+JIRA-131,High latency on search service,High latency on search service. Detailed investigation revealed related service behavior causing this issue.,High,In Progress,2025-03-01,Analytics
+JIRA-132,Stale cache after update,Stale cache after update. Detailed investigation revealed related service behavior causing this issue.,High,Open,2025-02-03,Analytics
+JIRA-133,Incorrect timezone in logs,Incorrect timezone in logs. Detailed investigation revealed related service behavior causing this issue.,Medium,Closed,2025-01-12,UI
+JIRA-134,Authentication token missing,Authentication token missing. Detailed investigation revealed related service behavior causing this issue.,Medium,Closed,2025-03-09,Data
+JIRA-135,Broken image links,Broken image links. Detailed investigation revealed related service behavior causing this issue.,Low,Closed,2025-02-06,Integration
+JIRA-136,API gateway misrouting,API gateway misrouting. Detailed investigation revealed related service behavior causing this issue.,Low,Open,2025-03-30,Data
+JIRA-137,Database deadlock detected,Database deadlock detected. Detailed investigation revealed related service behavior causing this issue.,High,Closed,2025-02-26,Data
+JIRA-138,Data sync delay,Data sync delay. Detailed investigation revealed related service behavior causing this issue.,Low,Open,2025-03-31,Integration
+JIRA-139,Network timeout in production,Network timeout in production. Detailed investigation revealed related service behavior causing this issue.,Low,Closed,2025-01-18,Integration
+JIRA-140,Job scheduler overlap,Job scheduler overlap. Detailed investigation revealed related service behavior causing this issue.,Low,Closed,2025-02-18,Infra
+JIRA-141,Dashboard filters not working,Dashboard filters not working. Detailed investigation revealed related service behavior causing this issue.,Low,Closed,2025-03-22,Analytics
+JIRA-142,Autoscaling not triggering,Autoscaling not triggering. Detailed investigation revealed related service behavior causing this issue.,High,Open,2025-01-29,Integration
+JIRA-143,High CPU usage,High CPU usage. Detailed investigation revealed related service behavior causing this issue.,High,Open,2025-01-12,Integration
+JIRA-144,UI dropdown not clickable,UI dropdown not clickable. Detailed investigation revealed related service behavior causing this issue.,High,Closed,2025-03-21,Security
+JIRA-145,Alert rules misconfigured,Alert rules misconfigured. Detailed investigation revealed related service behavior causing this issue.,High,Closed,2025-01-03,UI
+JIRA-146,ETL transformation error,ETL transformation error. Detailed investigation revealed related service behavior causing this issue.,High,In Progress,2025-02-24,Analytics
+JIRA-147,Orphaned containers,Orphaned containers. Detailed investigation revealed related service behavior causing this issue.,High,Open,2025-01-02,Security
+JIRA-148,SSL certificate expired,SSL certificate expired. Detailed investigation revealed related service behavior causing this issue.,Medium,In Progress,2025-03-06,Analytics
+JIRA-149,Missing audit logs,Missing audit logs. Detailed investigation revealed related service behavior causing this issue.,Low,Closed,2025-01-13,Infra
+JIRA-150,Webhook authentication failed,Webhook authentication failed. Detailed investigation revealed related service behavior causing this issue.,High,In Progress,2025-03-06,Data
+JIRA-151,Memory spike during import,Memory spike during import. Detailed investigation revealed related service behavior causing this issue.,Medium,Closed,2025-02-07,Infra

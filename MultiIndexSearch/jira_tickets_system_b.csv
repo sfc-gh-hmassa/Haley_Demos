@@ -1,0 +1,11 @@
+ticket_id,title,description
+ALT-201,Authentication failing in staging,Users see 401 errors when signing into the staging environment
+ALT-202,Sales summary mismatch in analytics dashboard,Revenue and profit numbers differ from raw data exports
+ALT-203,Container memory usage keeps rising,Memory footprint increasing every hour without release
+ALT-204,Profile updates not showing until refresh,Changes to user info appear only after clearing cache
+ALT-205,Emails not delivered to external domains,Outgoing email blocked due to expired credentials
+ALT-206,Graph widgets misaligned on mobile,Charts overflow on small screen layouts
+ALT-207,API responses slow for report queries,Latency observed when fetching report data
+ALT-208,Security tokens not refreshing automatically,Expired JWT tokens cause repeated login prompts
+ALT-209,ETL pipeline fails on large dataset,Job exceeds timeout limits during nightly batch
+ALT-210,Missing entries in daily revenue report,Some transactions not reflected in aggregated metrics
