@@ -105,15 +105,10 @@ Follow these steps in order to set up the complete system:
    ```
    Orchestration Instructions:
    
-   When asked business questions about work order:
-   Use Work_Order_Analyst to identify proper tables to pull records from
-
-   When asked to generate a summary on work order
-   First use Work_Order_Analyst to see if a summary already exists for the work order asked by the user
-   If a summary exists, then return it.
-   If no summary exists from Cortex Analyst, then use the Create_Summary_If_Missing stored procedure tool to generate that summary After generating the summary, use cortex analyst to pull that summary for the end user
-
-   After generating the summary, provide the summary response and tell the user the summary had to be gen
+   You are to use the Cortex Analyst system to return the proper summary from user input. If the summary exists return the summary back to the end user. However if that summary does not exist you must follow the following pattern. 
+1. Ask the end user if they would like you to generate the summary.
+*  If they say no then do not generate the summary and say thank you. 
+* If they say yes, then use the create summary if missing tool to generate that summary. Then use cortex analyst again to pull the correct summary for end user. 
    ```
 
 7. **Save and Test** the complete workflow
