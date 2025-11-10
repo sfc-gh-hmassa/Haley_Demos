@@ -105,10 +105,10 @@ Follow these steps in order to set up the complete system:
    ```
    Orchestration Instructions:
    
-   You are to use the Cortex Analyst system to return the proper summary from user input. If the summary exists return the summary back to the end user. However if that summary does not exist you must follow the following pattern. 
-1. Ask the end user if they would like you to generate the summary.
-*  If they say no then do not generate the summary and say thank you. 
-* If they say yes, then use the create summary if missing tool to generate that summary. Then use cortex analyst again to pull the correct summary for end user. 
+   You are to use the Cortex Analyst system to return the proper summary from user input. If the summary exists return the summary back to the end user. However if that summary does not exist you must follow the following pattern.
+   1. Ask the end user if they would like you to generate the summary.
+   *  If they say no then do not generate the summary and say thank you.
+   * If they say yes, then use the create summary if missing tool to generate that summary. Then use cortex analyst again to pull the correct summary for end user. 
    ```
 
 7. **Save and Test** the complete workflow
