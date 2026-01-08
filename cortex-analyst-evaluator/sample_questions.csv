@@ -1,0 +1,11 @@
+question,expected_sql,description,category
+"How many orders were placed in 2024?","SELECT COUNT(DISTINCT ORDER_ID) AS order_count FROM CORTEX_AGENTS_DEMO.MAIN.ORDERS WHERE YEAR(ORDER_DATE) = 2024","Basic count with year filter","Aggregation"
+"What is the total quantity of Iron Pipes ordered?","SELECT SUM(QUANTITY) AS total_quantity FROM CORTEX_AGENTS_DEMO.MAIN.ORDERS WHERE PRODUCT = 'Iron Pipes'","Sum with product filter","Aggregation"
+"Which customer has the most orders?","SELECT co.CUSTOMER, COUNT(DISTINCT co.ORDER_ID) AS order_count FROM CORTEX_AGENTS_DEMO.MAIN.CUSTOMER_ORDERS co GROUP BY co.CUSTOMER ORDER BY order_count DESC LIMIT 1","Ranking query","Ranking"
+"How many orders are currently pending?","SELECT COUNT(DISTINCT ORDER_ID) AS pending_orders FROM CORTEX_AGENTS_DEMO.MAIN.ORDERS WHERE STATUS = 'Pending'","Status filter","Filters"
+"What is the total revenue from shipped orders?","SELECT SUM(o.QUANTITY * p.UNIT_PRICE) AS total_revenue FROM CORTEX_AGENTS_DEMO.MAIN.ORDERS o JOIN CORTEX_AGENTS_DEMO.MAIN.PRODUCTS p ON o.PRODUCT = p.PRODUCT WHERE o.STATUS = 'Shipped'","Multi-table join with calculation","Joins"
+"How many orders were cancelled in Germany?","SELECT COUNT(DISTINCT ORDER_ID) AS cancelled_orders FROM CORTEX_AGENTS_DEMO.MAIN.ORDERS WHERE STATUS = 'Cancelled' AND COUNTRY = 'Germany'","Multiple filters","Filters"
+"What products have been ordered to the UK?","SELECT DISTINCT PRODUCT FROM CORTEX_AGENTS_DEMO.MAIN.ORDERS WHERE COUNTRY = 'UK' ORDER BY PRODUCT","Distinct values","Filters"
+"What is the total revenue by country?","SELECT COUNTRY, SUM(o.QUANTITY * p.UNIT_PRICE) AS total_revenue FROM CORTEX_AGENTS_DEMO.MAIN.ORDERS o JOIN CORTEX_AGENTS_DEMO.MAIN.PRODUCTS p ON o.PRODUCT = p.PRODUCT GROUP BY COUNTRY ORDER BY total_revenue DESC","Group by with join","Joins"
+"How many orders did Beta Ltd place?","SELECT COUNT(DISTINCT co.ORDER_ID) AS order_count FROM CORTEX_AGENTS_DEMO.MAIN.CUSTOMER_ORDERS co WHERE co.CUSTOMER = 'Beta Ltd'","Customer filter","Filters"
+"What is the most ordered product?","SELECT PRODUCT, SUM(QUANTITY) AS total_qty FROM CORTEX_AGENTS_DEMO.MAIN.ORDERS GROUP BY PRODUCT ORDER BY total_qty DESC LIMIT 1","Ranking by quantity","Ranking"
