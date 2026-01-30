@@ -1,0 +1,509 @@
+name: og_metadata_governance
+description: O&G Upstream Ontology metadata and governance model - enables introspection of ontology structure, entity definitions, relationships, and attributes. Use for discovering what object types exist, their properties, and how they relate.
+
+tables:
+  # =====================================================
+  # DOMAIN DEFINITIONS
+  # =====================================================
+  - name: ONT_DOMAIN
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: ONTOLOGY_METADATA
+      table: ONT_DOMAIN
+    description: "Domain registry - defines business domains (e.g., O&G Upstream)"
+    dimensions:
+      - name: DOMAIN_ID
+        expr: DOMAIN_ID
+        data_type: STRING
+        description: Domain unique identifier
+      - name: DOMAIN_NAME
+        expr: DOMAIN_NAME
+        data_type: STRING
+        sample_values:
+          - "O&G Upstream"
+        description: Human-readable domain name
+        synonyms:
+          - domain
+          - name
+      - name: DOMAIN_DESCRIPTION
+        expr: DOMAIN_DESCRIPTION
+        data_type: STRING
+        description: Description of the domain
+        synonyms:
+          - description
+      - name: IS_ACTIVE
+        expr: IS_ACTIVE
+        data_type: BOOLEAN
+        description: Whether this domain is active
+    time_dimensions:
+      - name: CREATED_AT
+        expr: CREATED_AT
+        data_type: TIMESTAMP
+        description: When domain was created
+      - name: UPDATED_AT
+        expr: UPDATED_AT
+        data_type: TIMESTAMP
+        description: When domain was last updated
+    primary_key:
+      columns:
+        - DOMAIN_ID
+
+  # =====================================================
+  # ENTITY (CLASS) DEFINITIONS
+  # =====================================================
+  - name: ONT_ENTITY
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: ONTOLOGY_METADATA
+      table: ONT_ENTITY
+    description: "Entity type definitions - describes all object types in the ontology (WELL, FIELD, EQUIPMENT, etc.)"
+    dimensions:
+      - name: ENTITY_ID
+        expr: ENTITY_ID
+        data_type: STRING
+        description: Entity type unique identifier
+      - name: DOMAIN_ID
+        expr: DOMAIN_ID
+        data_type: STRING
+        description: Domain this entity belongs to
+      - name: ENTITY_NAME
+        expr: ENTITY_NAME
+        data_type: STRING
+        sample_values:
+          - WELL
+          - FIELD
+          - FACILITY
+          - EQUIPMENT
+          - PRODUCTION_PERIOD
+          - WELLBORE
+        description: Entity type name (e.g., WELL, FIELD)
+        synonyms:
+          - entity_type
+          - object_type
+          - class_name
+          - type
+      - name: ENTITY_DESCRIPTION
+        expr: ENTITY_DESCRIPTION
+        data_type: STRING
+        description: Business description of the entity type
+        synonyms:
+          - description
+      - name: NODE_TYPE_KEY
+        expr: NODE_TYPE_KEY
+        data_type: STRING
+        description: Key used in KG_NODE.NODE_TYPE to identify this entity
+      - name: IS_ABSTRACT
+        expr: IS_ABSTRACT
+        data_type: BOOLEAN
+        description: Whether this is an abstract entity type
+      - name: PARENT_ENTITY_ID
+        expr: PARENT_ENTITY_ID
+        data_type: STRING
+        description: Parent entity for inheritance (if any)
+      - name: IS_ACTIVE
+        expr: IS_ACTIVE
+        data_type: BOOLEAN
+        description: Whether this entity type is active
+    time_dimensions:
+      - name: CREATED_AT
+        expr: CREATED_AT
+        data_type: TIMESTAMP
+        description: When entity was defined
+    primary_key:
+      columns:
+        - ENTITY_ID
+
+  # =====================================================
+  # ATTRIBUTE (PROPERTY) DEFINITIONS
+  # =====================================================
+  - name: ONT_ATTRIBUTE
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: ONTOLOGY_METADATA
+      table: ONT_ATTRIBUTE
+    description: "Attribute definitions for each entity type - describes properties like well_status, operator, production volumes"
+    dimensions:
+      - name: ATTRIBUTE_ID
+        expr: ATTRIBUTE_ID
+        data_type: STRING
+        description: Attribute unique identifier
+      - name: ENTITY_ID
+        expr: ENTITY_ID
+        data_type: STRING
+        description: Entity this attribute belongs to
+      - name: ATTRIBUTE_NAME
+        expr: ATTRIBUTE_NAME
+        data_type: STRING
+        sample_values:
+          - well_status
+          - operator
+          - oil_volume_bbl
+          - equipment_type
+          - basin
+        description: Attribute name
+        synonyms:
+          - property_name
+          - column_name
+          - field_name
+      - name: ATTRIBUTE_DESCRIPTION
+        expr: ATTRIBUTE_DESCRIPTION
+        data_type: STRING
+        description: Business description of the attribute
+        synonyms:
+          - description
+      - name: DATA_TYPE
+        expr: DATA_TYPE
+        data_type: STRING
+        sample_values:
+          - STRING
+          - NUMBER
+          - DATE
+          - BOOLEAN
+          - VARIANT
+        description: Data type of the attribute
+        synonyms:
+          - type
+      - name: IS_REQUIRED
+        expr: IS_REQUIRED
+        data_type: BOOLEAN
+        description: Whether this attribute is required
+      - name: IS_INDEXED
+        expr: IS_INDEXED
+        data_type: BOOLEAN
+        description: Whether this attribute is indexed for search
+      - name: IS_DIMENSION
+        expr: IS_DIMENSION
+        data_type: BOOLEAN
+        description: Whether this is a dimension (categorical) vs fact (numeric)
+      - name: JSON_PATH
+        expr: JSON_PATH
+        data_type: STRING
+        description: Path to extract from NODE_PROPERTIES VARIANT column
+        synonyms:
+          - property_path
+      - name: IS_ACTIVE
+        expr: IS_ACTIVE
+        data_type: BOOLEAN
+        description: Whether this attribute is active
+    primary_key:
+      columns:
+        - ATTRIBUTE_ID
+
+  # =====================================================
+  # RELATIONSHIP DEFINITIONS
+  # =====================================================
+  - name: ONT_RELATION_DEF
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: ONTOLOGY_METADATA
+      table: ONT_RELATION_DEF
+    description: "Relationship type definitions - describes how entities relate (WELL PART_OF_FIELD FIELD)"
+    dimensions:
+      - name: RELATION_ID
+        expr: RELATION_ID
+        data_type: STRING
+        description: Relationship type unique identifier
+      - name: DOMAIN_ID
+        expr: DOMAIN_ID
+        data_type: STRING
+        description: Domain this relationship belongs to
+      - name: RELATION_NAME
+        expr: RELATION_NAME
+        data_type: STRING
+        sample_values:
+          - PART_OF_FIELD
+          - HAS_EQUIPMENT
+          - HAS_PRODUCTION
+          - PRODUCES_TO
+          - HAS_FACILITY
+        description: Relationship name
+        synonyms:
+          - relationship_type
+          - edge_type
+          - link_type
+      - name: RELATION_DESCRIPTION
+        expr: RELATION_DESCRIPTION
+        data_type: STRING
+        description: Business description of the relationship
+        synonyms:
+          - description
+      - name: SOURCE_ENTITY_ID
+        expr: SOURCE_ENTITY_ID
+        data_type: STRING
+        description: Source entity type (FROM)
+        synonyms:
+          - from_entity
+          - domain_class
+      - name: TARGET_ENTITY_ID
+        expr: TARGET_ENTITY_ID
+        data_type: STRING
+        description: Target entity type (TO)
+        synonyms:
+          - to_entity
+          - range_class
+      - name: CARDINALITY
+        expr: CARDINALITY
+        data_type: STRING
+        sample_values:
+          - "N:1"
+          - "1:N"
+          - "N:N"
+          - "1:1"
+        description: Cardinality constraint
+        synonyms:
+          - multiplicity
+      - name: IS_TEMPORAL
+        expr: IS_TEMPORAL
+        data_type: BOOLEAN
+        description: Whether relationship has temporal validity (EFFECTIVE_FROM/TO)
+      - name: IS_ACTIVE
+        expr: IS_ACTIVE
+        data_type: BOOLEAN
+        description: Whether this relationship type is active
+    primary_key:
+      columns:
+        - RELATION_ID
+
+  # =====================================================
+  # PHYSICAL LAYER - KG_NODE (for data quality queries)
+  # =====================================================
+  - name: KG_NODE
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: PHYSICAL_LAYER
+      table: KG_NODE
+    description: "Physical node storage - all entities stored with VARIANT properties"
+    dimensions:
+      - name: NODE_ID
+        expr: NODE_ID
+        data_type: STRING
+        description: Node unique identifier (UUID)
+      - name: NODE_TYPE
+        expr: NODE_TYPE
+        data_type: STRING
+        sample_values:
+          - WELL
+          - FIELD
+          - EQUIPMENT
+          - FACILITY
+          - PRODUCTION_PERIOD
+        description: Node type (maps to entity types)
+        synonyms:
+          - entity_type
+          - type
+      - name: NODE_KEY
+        expr: NODE_KEY
+        data_type: STRING
+        description: Business key for the node
+        synonyms:
+          - business_key
+          - natural_key
+      - name: NODE_NAME
+        expr: NODE_NAME
+        data_type: STRING
+        description: Human-readable name
+        synonyms:
+          - name
+      - name: IS_ACTIVE
+        expr: IS_ACTIVE
+        data_type: BOOLEAN
+        description: Whether node is active
+    time_dimensions:
+      - name: CREATED_AT
+        expr: CREATED_AT
+        data_type: TIMESTAMP
+        description: When node was created
+      - name: UPDATED_AT
+        expr: UPDATED_AT
+        data_type: TIMESTAMP
+        description: When node was last updated
+    primary_key:
+      columns:
+        - NODE_ID
+
+  # =====================================================
+  # PHYSICAL LAYER - KG_EDGE (for data quality queries)
+  # =====================================================
+  - name: KG_EDGE
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: PHYSICAL_LAYER
+      table: KG_EDGE
+    description: "Physical edge storage - all relationships with temporal validity"
+    dimensions:
+      - name: EDGE_ID
+        expr: EDGE_ID
+        data_type: STRING
+        description: Edge unique identifier (UUID)
+      - name: EDGE_TYPE
+        expr: EDGE_TYPE
+        data_type: STRING
+        sample_values:
+          - PART_OF_FIELD
+          - HAS_EQUIPMENT
+          - HAS_PRODUCTION
+        description: Edge type (maps to relationship types)
+        synonyms:
+          - relationship_type
+      - name: SOURCE_NODE_ID
+        expr: SOURCE_NODE_ID
+        data_type: STRING
+        description: Source node ID
+        synonyms:
+          - from_node
+      - name: TARGET_NODE_ID
+        expr: TARGET_NODE_ID
+        data_type: STRING
+        description: Target node ID
+        synonyms:
+          - to_node
+      - name: IS_ACTIVE
+        expr: IS_ACTIVE
+        data_type: BOOLEAN
+        description: Whether edge is active
+    time_dimensions:
+      - name: EFFECTIVE_FROM
+        expr: EFFECTIVE_FROM
+        data_type: DATE
+        description: Relationship start date
+      - name: EFFECTIVE_TO
+        expr: EFFECTIVE_TO
+        data_type: DATE
+        description: Relationship end date
+      - name: CREATED_AT
+        expr: CREATED_AT
+        data_type: TIMESTAMP
+        description: When edge was created
+    primary_key:
+      columns:
+        - EDGE_ID
+
+# Relationships for introspection queries
+relationships:
+  - name: entity_to_domain
+    left_table: ONT_ENTITY
+    right_table: ONT_DOMAIN
+    relationship_columns:
+      - left_column: DOMAIN_ID
+        right_column: DOMAIN_ID
+
+  - name: attribute_to_entity
+    left_table: ONT_ATTRIBUTE
+    right_table: ONT_ENTITY
+    relationship_columns:
+      - left_column: ENTITY_ID
+        right_column: ENTITY_ID
+
+  - name: relation_to_source_entity
+    left_table: ONT_RELATION_DEF
+    right_table: ONT_ENTITY
+    relationship_columns:
+      - left_column: SOURCE_ENTITY_ID
+        right_column: ENTITY_ID
+
+  - name: relation_to_target_entity
+    left_table: ONT_RELATION_DEF
+    right_table: ONT_ENTITY
+    relationship_columns:
+      - left_column: TARGET_ENTITY_ID
+        right_column: ENTITY_ID
+
+verified_queries:
+  - name: "List all entity types"
+    question: "What object types exist in the ontology?"
+    sql: |
+      SELECT ENTITY_NAME, ENTITY_DESCRIPTION, IS_ABSTRACT
+      FROM OG_ONTOLOGY_DEMO.ONTOLOGY_METADATA.ONT_ENTITY
+      WHERE IS_ACTIVE = TRUE
+      ORDER BY ENTITY_NAME
+    verified_at: 1706640000
+    verified_by: system
+
+  - name: "List attributes for an entity"
+    question: "What attributes does the WELL entity have?"
+    sql: |
+      SELECT a.ATTRIBUTE_NAME, a.DATA_TYPE, a.ATTRIBUTE_DESCRIPTION, a.IS_REQUIRED
+      FROM OG_ONTOLOGY_DEMO.ONTOLOGY_METADATA.ONT_ATTRIBUTE a
+      JOIN OG_ONTOLOGY_DEMO.ONTOLOGY_METADATA.ONT_ENTITY e ON a.ENTITY_ID = e.ENTITY_ID
+      WHERE e.ENTITY_NAME = 'WELL' AND a.IS_ACTIVE = TRUE
+      ORDER BY a.ATTRIBUTE_NAME
+    verified_at: 1706640000
+    verified_by: system
+
+  - name: "List all relationships"
+    question: "What relationships exist between entities?"
+    sql: |
+      SELECT 
+        r.RELATION_NAME,
+        se.ENTITY_NAME AS SOURCE_ENTITY,
+        te.ENTITY_NAME AS TARGET_ENTITY,
+        r.CARDINALITY,
+        r.RELATION_DESCRIPTION
+      FROM OG_ONTOLOGY_DEMO.ONTOLOGY_METADATA.ONT_RELATION_DEF r
+      JOIN OG_ONTOLOGY_DEMO.ONTOLOGY_METADATA.ONT_ENTITY se ON r.SOURCE_ENTITY_ID = se.ENTITY_ID
+      JOIN OG_ONTOLOGY_DEMO.ONTOLOGY_METADATA.ONT_ENTITY te ON r.TARGET_ENTITY_ID = te.ENTITY_ID
+      WHERE r.IS_ACTIVE = TRUE
+      ORDER BY r.RELATION_NAME
+    verified_at: 1706640000
+    verified_by: system
+
+  - name: "Count nodes by type"
+    question: "How many nodes are there of each type?"
+    sql: |
+      SELECT NODE_TYPE, COUNT(*) AS NODE_COUNT
+      FROM OG_ONTOLOGY_DEMO.PHYSICAL_LAYER.KG_NODE
+      WHERE IS_ACTIVE = TRUE
+      GROUP BY NODE_TYPE
+      ORDER BY NODE_COUNT DESC
+    verified_at: 1706640000
+    verified_by: system
+
+  - name: "Count edges by type"
+    question: "How many relationships are there of each type?"
+    sql: |
+      SELECT EDGE_TYPE, COUNT(*) AS EDGE_COUNT
+      FROM OG_ONTOLOGY_DEMO.PHYSICAL_LAYER.KG_EDGE
+      WHERE IS_ACTIVE = TRUE
+      GROUP BY EDGE_TYPE
+      ORDER BY EDGE_COUNT DESC
+    verified_at: 1706640000
+    verified_by: system
+
+  - name: "Data quality - orphan nodes"
+    question: "Are there any orphan nodes (nodes without relationships)?"
+    sql: |
+      SELECT n.NODE_TYPE, n.NODE_NAME, n.NODE_KEY
+      FROM OG_ONTOLOGY_DEMO.PHYSICAL_LAYER.KG_NODE n
+      LEFT JOIN OG_ONTOLOGY_DEMO.PHYSICAL_LAYER.KG_EDGE e1 
+        ON n.NODE_ID = e1.SOURCE_NODE_ID
+      LEFT JOIN OG_ONTOLOGY_DEMO.PHYSICAL_LAYER.KG_EDGE e2 
+        ON n.NODE_ID = e2.TARGET_NODE_ID
+      WHERE e1.EDGE_ID IS NULL AND e2.EDGE_ID IS NULL
+        AND n.IS_ACTIVE = TRUE
+    verified_at: 1706640000
+    verified_by: system
+
+  - name: "Entity hierarchy"
+    question: "What is the entity inheritance hierarchy?"
+    sql: |
+      SELECT 
+        e.ENTITY_NAME,
+        p.ENTITY_NAME AS PARENT_ENTITY,
+        e.IS_ABSTRACT,
+        e.ENTITY_DESCRIPTION
+      FROM OG_ONTOLOGY_DEMO.ONTOLOGY_METADATA.ONT_ENTITY e
+      LEFT JOIN OG_ONTOLOGY_DEMO.ONTOLOGY_METADATA.ONT_ENTITY p 
+        ON e.PARENT_ENTITY_ID = p.ENTITY_ID
+      WHERE e.IS_ACTIVE = TRUE
+      ORDER BY e.ENTITY_NAME
+    verified_at: 1706640000
+    verified_by: system
+
+  - name: "Domain overview"
+    question: "What domains are defined in the ontology?"
+    sql: |
+      SELECT DOMAIN_NAME, DOMAIN_DESCRIPTION, IS_ACTIVE, CREATED_AT
+      FROM OG_ONTOLOGY_DEMO.ONTOLOGY_METADATA.ONT_DOMAIN
+      ORDER BY DOMAIN_NAME
+    verified_at: 1706640000
+    verified_by: system

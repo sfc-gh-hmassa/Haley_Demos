@@ -1,0 +1,593 @@
+name: og_ontology
+description: O&G Upstream Ontology semantic model - abstract classes (Asset, Location, Event) and relationships that unify concrete entity views through metadata-driven dynamic view generation. Enables polymorphic queries like "What assets are in this location?" across all entity types.
+
+tables:
+  # =====================================================
+  # ONTOLOGY ABSTRACT CLASSES
+  # =====================================================
+  - name: ONT_ASSET
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: ONTOLOGY_VIEWS
+      table: VW_ONT_ASSET
+    description: "Abstract Asset class unioning WELL, EQUIPMENT, and FACILITY views - dynamically generated from ontology metadata. Use for polymorphic queries across all physical assets."
+    dimensions:
+      - name: ID
+        expr: ID
+        data_type: STRING
+        description: Asset identifier (unified from concrete views)
+        synonyms:
+          - asset_id
+          - entity_id
+          - node_id
+      - name: SUBTYPE
+        expr: SUBTYPE
+        data_type: STRING
+        sample_values:
+          - WELL
+          - EQUIPMENT
+          - FACILITY
+        description: Concrete type of asset (WELL, EQUIPMENT, or FACILITY)
+        synonyms:
+          - asset_type
+          - type
+          - category
+          - concrete_class
+      - name: SRC_VIEW
+        expr: SRC_VIEW
+        data_type: STRING
+        sample_values:
+          - V_WELLS
+          - V_EQUIPMENT
+          - V_FACILITIES
+        description: Source view from which this asset was materialized
+        synonyms:
+          - source
+          - origin_view
+      - name: NAME
+        expr: NAME
+        data_type: STRING
+        description: Asset name
+        synonyms:
+          - asset_name
+      - name: ASSET_CODE
+        expr: ASSET_CODE
+        data_type: STRING
+        description: Asset code/identifier
+        synonyms:
+          - code
+          - identifier
+    primary_key:
+      columns:
+        - ID
+
+  - name: ONT_LOCATION
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: ONTOLOGY_VIEWS
+      table: VW_ONT_LOCATION
+    description: "Abstract Location class - currently contains FIELD entities. Extensible for other location types."
+    dimensions:
+      - name: ID
+        expr: ID
+        data_type: STRING
+        description: Location identifier (unified from concrete views)
+        synonyms:
+          - location_id
+          - entity_id
+          - node_id
+      - name: SUBTYPE
+        expr: SUBTYPE
+        data_type: STRING
+        sample_values:
+          - FIELD
+        description: Concrete type of location (FIELD, BASIN, etc.)
+        synonyms:
+          - location_type
+          - type
+          - category
+      - name: SRC_VIEW
+        expr: SRC_VIEW
+        data_type: STRING
+        sample_values:
+          - V_FIELDS
+        description: Source view from which this location was materialized
+      - name: NAME
+        expr: NAME
+        data_type: STRING
+        description: Location name
+        synonyms:
+          - location_name
+      - name: LOCATION_CODE
+        expr: LOCATION_CODE
+        data_type: STRING
+        description: Location code
+      - name: BASIN
+        expr: BASIN
+        data_type: STRING
+        description: Geological basin
+        synonyms:
+          - play
+      - name: REGION
+        expr: REGION
+        data_type: STRING
+        description: Geographic region
+    primary_key:
+      columns:
+        - ID
+
+  - name: ONT_EVENT
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: ONTOLOGY_VIEWS
+      table: VW_ONT_EVENT
+    description: "Abstract Event class - contains time-based events like PRODUCTION_PERIOD"
+    dimensions:
+      - name: ID
+        expr: ID
+        data_type: STRING
+        description: Event identifier
+        synonyms:
+          - event_id
+          - entity_id
+      - name: SUBTYPE
+        expr: SUBTYPE
+        data_type: STRING
+        sample_values:
+          - PRODUCTION_PERIOD
+        description: Concrete type of event
+        synonyms:
+          - event_type
+          - type
+      - name: SRC_VIEW
+        expr: SRC_VIEW
+        data_type: STRING
+        sample_values:
+          - V_PRODUCTION
+        description: Source view
+      - name: NAME
+        expr: NAME
+        data_type: STRING
+        description: Event name/description
+      - name: EVENT_CODE
+        expr: EVENT_CODE
+        data_type: STRING
+        description: Event code
+    time_dimensions:
+      - name: EVENT_DATE
+        expr: EVENT_DATE
+        data_type: DATE
+        description: Date of the event
+        synonyms:
+          - date
+    facts:
+      - name: OIL_VOLUME
+        expr: OIL_VOLUME
+        data_type: NUMBER
+        description: Oil volume for production events
+      - name: GAS_VOLUME
+        expr: GAS_VOLUME
+        data_type: NUMBER
+        description: Gas volume for production events
+    primary_key:
+      columns:
+        - ID
+
+  # =====================================================
+  # CONCRETE ENTITY VIEWS (for attribute enrichment)
+  # Join ontology views to concrete views for detailed attributes
+  # =====================================================
+  - name: V_WELLS
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: ONTOLOGY_VIEWS
+      table: V_WELLS
+    description: "Concrete well view with detailed attributes - join from ONT_ASSET where SUBTYPE='WELL'"
+    dimensions:
+      - name: WELL_ID
+        expr: WELL_ID
+        data_type: STRING
+        description: Well identifier
+      - name: API_NUMBER
+        expr: API_NUMBER
+        data_type: STRING
+        description: API well number
+      - name: WELL_NAME
+        expr: WELL_NAME
+        data_type: STRING
+        description: Well name
+      - name: WELL_STATUS
+        expr: WELL_STATUS
+        data_type: STRING
+        description: Well operational status
+      - name: WELL_TYPE
+        expr: WELL_TYPE
+        data_type: STRING
+        description: Well type (OIL, GAS)
+      - name: OPERATOR
+        expr: OPERATOR
+        data_type: STRING
+        description: Operating company
+    time_dimensions:
+      - name: SPUD_DATE
+        expr: SPUD_DATE
+        data_type: DATE
+        description: Drilling start date
+      - name: COMPLETION_DATE
+        expr: COMPLETION_DATE
+        data_type: DATE
+        description: Completion date
+    facts:
+      - name: TOTAL_DEPTH_FT
+        expr: TOTAL_DEPTH_FT
+        data_type: NUMBER
+        description: Total depth in feet
+      - name: LATITUDE
+        expr: LATITUDE
+        data_type: NUMBER
+        description: Latitude
+      - name: LONGITUDE
+        expr: LONGITUDE
+        data_type: NUMBER
+        description: Longitude
+    primary_key:
+      columns:
+        - WELL_ID
+
+  - name: V_EQUIPMENT
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: ONTOLOGY_VIEWS
+      table: V_EQUIPMENT
+    description: "Concrete equipment view - join from ONT_ASSET where SUBTYPE='EQUIPMENT'"
+    dimensions:
+      - name: EQUIPMENT_ID
+        expr: EQUIPMENT_ID
+        data_type: STRING
+        description: Equipment identifier
+      - name: EQUIPMENT_CODE
+        expr: EQUIPMENT_CODE
+        data_type: STRING
+        description: Equipment code
+      - name: EQUIPMENT_NAME
+        expr: EQUIPMENT_NAME
+        data_type: STRING
+        description: Equipment name
+      - name: EQUIPMENT_TYPE
+        expr: EQUIPMENT_TYPE
+        data_type: STRING
+        description: Equipment type (ESP, ROD_PUMP, etc.)
+      - name: MANUFACTURER
+        expr: MANUFACTURER
+        data_type: STRING
+        description: Manufacturer
+      - name: MODEL
+        expr: MODEL
+        data_type: STRING
+        description: Model
+      - name: EQUIPMENT_STATUS
+        expr: EQUIPMENT_STATUS
+        data_type: STRING
+        description: Equipment status
+    time_dimensions:
+      - name: INSTALL_DATE
+        expr: INSTALL_DATE
+        data_type: DATE
+        description: Installation date
+      - name: FAILURE_DATE
+        expr: FAILURE_DATE
+        data_type: DATE
+        description: Failure date
+    primary_key:
+      columns:
+        - EQUIPMENT_ID
+
+  - name: V_FACILITIES
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: ONTOLOGY_VIEWS
+      table: V_FACILITIES
+    description: "Concrete facility view - join from ONT_ASSET where SUBTYPE='FACILITY'"
+    dimensions:
+      - name: FACILITY_ID
+        expr: FACILITY_ID
+        data_type: STRING
+        description: Facility identifier
+      - name: FACILITY_CODE
+        expr: FACILITY_CODE
+        data_type: STRING
+        description: Facility code
+      - name: FACILITY_NAME
+        expr: FACILITY_NAME
+        data_type: STRING
+        description: Facility name
+      - name: FACILITY_TYPE
+        expr: FACILITY_TYPE
+        data_type: STRING
+        description: Facility type
+    facts:
+      - name: PROCESSING_CAPACITY_BOPD
+        expr: PROCESSING_CAPACITY_BOPD
+        data_type: NUMBER
+        description: Processing capacity in BOPD
+    primary_key:
+      columns:
+        - FACILITY_ID
+
+  - name: V_FIELDS
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: ONTOLOGY_VIEWS
+      table: V_FIELDS
+    description: "Concrete field view - join from ONT_LOCATION where SUBTYPE='FIELD'"
+    dimensions:
+      - name: FIELD_ID
+        expr: FIELD_ID
+        data_type: STRING
+        description: Field identifier
+      - name: FIELD_CODE
+        expr: FIELD_CODE
+        data_type: STRING
+        description: Field code
+      - name: FIELD_NAME
+        expr: FIELD_NAME
+        data_type: STRING
+        description: Field name
+      - name: BASIN
+        expr: BASIN
+        data_type: STRING
+        description: Basin name
+      - name: REGION
+        expr: REGION
+        data_type: STRING
+        description: Region
+      - name: COUNTRY
+        expr: COUNTRY
+        data_type: STRING
+        description: Country
+    facts:
+      - name: TOTAL_AREA_ACRES
+        expr: TOTAL_AREA_ACRES
+        data_type: NUMBER
+        description: Total area in acres
+      - name: ESTIMATED_OIL_RESERVES_MMBBL
+        expr: ESTIMATED_OIL_RESERVES_MMBBL
+        data_type: NUMBER
+        description: Estimated oil reserves
+      - name: ESTIMATED_GAS_RESERVES_BCF
+        expr: ESTIMATED_GAS_RESERVES_BCF
+        data_type: NUMBER
+        description: Estimated gas reserves
+    primary_key:
+      columns:
+        - FIELD_ID
+
+  # =====================================================
+  # UNIFIED RELATIONSHIP VIEW (for graph queries)
+  # =====================================================
+  - name: REL_RESOLVED
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: ONTOLOGY_VIEWS
+      table: REL_RESOLVED
+    description: "Unified view of all relationships with resolved type information - use for graph traversal queries"
+    dimensions:
+      - name: REL_ID
+        expr: REL_ID
+        data_type: STRING
+        description: Relationship ID
+      - name: REL_NAME
+        expr: REL_NAME
+        data_type: STRING
+        sample_values:
+          - PART_OF_FIELD
+          - HAS_EQUIPMENT
+          - HAS_PRODUCTION
+          - PRODUCES_TO
+          - HAS_FACILITY
+        description: Relationship name/type
+        synonyms:
+          - relationship_type
+          - edge_type
+      - name: SRC_ID
+        expr: SRC_ID
+        data_type: STRING
+        description: Source node ID
+        synonyms:
+          - source_id
+          - from_id
+      - name: SRC_CLASS
+        expr: SRC_CLASS
+        data_type: STRING
+        sample_values:
+          - WELL
+          - FIELD
+          - EQUIPMENT
+          - FACILITY
+        description: Source node class type
+        synonyms:
+          - source_type
+      - name: SRC_NAME
+        expr: SRC_NAME
+        data_type: STRING
+        description: Source node name
+      - name: DST_ID
+        expr: DST_ID
+        data_type: STRING
+        description: Destination node ID
+        synonyms:
+          - target_id
+          - to_id
+      - name: DST_CLASS
+        expr: DST_CLASS
+        data_type: STRING
+        description: Destination node class type
+        synonyms:
+          - target_type
+      - name: DST_NAME
+        expr: DST_NAME
+        data_type: STRING
+        description: Destination node name
+    time_dimensions:
+      - name: EFFECTIVE_FROM
+        expr: EFFECTIVE_FROM
+        data_type: DATE
+        description: Relationship start date
+      - name: EFFECTIVE_TO
+        expr: EFFECTIVE_TO
+        data_type: DATE
+        description: Relationship end date
+    primary_key:
+      columns:
+        - REL_ID
+
+  - name: VW_ONT_OPERATES_AT
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: ONTOLOGY_VIEWS
+      table: VW_ONT_OPERATES_AT
+    description: "Abstract relationship view - assets operating at/in locations"
+    dimensions:
+      - name: REL_ID
+        expr: REL_ID
+        data_type: STRING
+        description: Relationship ID
+      - name: REL_NAME
+        expr: REL_NAME
+        data_type: STRING
+        description: Relationship name
+      - name: SRC_ID
+        expr: SRC_ID
+        data_type: STRING
+        description: Source asset ID
+      - name: SRC_CLASS
+        expr: SRC_CLASS
+        data_type: STRING
+        description: Source asset type
+      - name: DST_ID
+        expr: DST_ID
+        data_type: STRING
+        description: Destination location ID
+      - name: DST_CLASS
+        expr: DST_CLASS
+        data_type: STRING
+        description: Destination location type
+    time_dimensions:
+      - name: EFFECTIVE_FROM
+        expr: EFFECTIVE_FROM
+        data_type: DATE
+        description: Start date
+      - name: EFFECTIVE_TO
+        expr: EFFECTIVE_TO
+        data_type: DATE
+        description: End date
+
+# Relationships for attribute enrichment pattern
+relationships:
+  - name: asset_to_well
+    left_table: ONT_ASSET
+    right_table: V_WELLS
+    relationship_columns:
+      - left_column: ID
+        right_column: WELL_ID
+    description: "Join to get well attributes when SUBTYPE='WELL'"
+
+  - name: asset_to_equipment
+    left_table: ONT_ASSET
+    right_table: V_EQUIPMENT
+    relationship_columns:
+      - left_column: ID
+        right_column: EQUIPMENT_ID
+    description: "Join to get equipment attributes when SUBTYPE='EQUIPMENT'"
+
+  - name: asset_to_facility
+    left_table: ONT_ASSET
+    right_table: V_FACILITIES
+    relationship_columns:
+      - left_column: ID
+        right_column: FACILITY_ID
+    description: "Join to get facility attributes when SUBTYPE='FACILITY'"
+
+  - name: location_to_field
+    left_table: ONT_LOCATION
+    right_table: V_FIELDS
+    relationship_columns:
+      - left_column: ID
+        right_column: FIELD_ID
+    description: "Join to get field attributes when SUBTYPE='FIELD'"
+
+verified_queries:
+  - name: "All assets (polymorphic)"
+    question: "What are all the assets in the system?"
+    sql: |
+      SELECT ID, SUBTYPE, NAME, ASSET_CODE
+      FROM OG_ONTOLOGY_DEMO.ONTOLOGY_VIEWS.VW_ONT_ASSET
+      ORDER BY SUBTYPE, NAME
+    verified_at: 1706640000
+    verified_by: system
+
+  - name: "All assets with attributes (polymorphic with enrichment)"
+    question: "Show me all assets with their detailed attributes"
+    sql: |
+      SELECT 
+        a.SUBTYPE,
+        CASE 
+          WHEN a.SUBTYPE = 'WELL' THEN w.WELL_NAME
+          WHEN a.SUBTYPE = 'EQUIPMENT' THEN e.EQUIPMENT_NAME
+          WHEN a.SUBTYPE = 'FACILITY' THEN f.FACILITY_NAME
+        END AS NAME,
+        CASE 
+          WHEN a.SUBTYPE = 'WELL' THEN w.OPERATOR
+          WHEN a.SUBTYPE = 'EQUIPMENT' THEN e.MANUFACTURER
+          WHEN a.SUBTYPE = 'FACILITY' THEN f.FACILITY_TYPE
+        END AS OWNER_OR_TYPE
+      FROM OG_ONTOLOGY_DEMO.ONTOLOGY_VIEWS.VW_ONT_ASSET a
+      LEFT JOIN OG_ONTOLOGY_DEMO.ONTOLOGY_VIEWS.V_WELLS w 
+        ON a.ID = w.WELL_ID AND a.SUBTYPE = 'WELL'
+      LEFT JOIN OG_ONTOLOGY_DEMO.ONTOLOGY_VIEWS.V_EQUIPMENT e 
+        ON a.ID = e.EQUIPMENT_ID AND a.SUBTYPE = 'EQUIPMENT'
+      LEFT JOIN OG_ONTOLOGY_DEMO.ONTOLOGY_VIEWS.V_FACILITIES f 
+        ON a.ID = f.FACILITY_ID AND a.SUBTYPE = 'FACILITY'
+    verified_at: 1706640000
+    verified_by: system
+
+  - name: "Assets in a specific location"
+    question: "What assets are in the Permian Basin?"
+    sql: |
+      SELECT 
+        r.SRC_CLASS AS ASSET_TYPE,
+        r.SRC_NAME AS ASSET_NAME,
+        r.REL_NAME AS RELATIONSHIP,
+        r.DST_NAME AS LOCATION
+      FROM OG_ONTOLOGY_DEMO.ONTOLOGY_VIEWS.REL_RESOLVED r
+      JOIN OG_ONTOLOGY_DEMO.ONTOLOGY_VIEWS.VW_ONT_LOCATION l ON r.DST_ID = l.ID
+      WHERE l.BASIN = 'Permian'
+    verified_at: 1706640000
+    verified_by: system
+
+  - name: "All locations"
+    question: "What locations exist in the system?"
+    sql: |
+      SELECT ID, SUBTYPE, NAME, BASIN, REGION
+      FROM OG_ONTOLOGY_DEMO.ONTOLOGY_VIEWS.VW_ONT_LOCATION
+    verified_at: 1706640000
+    verified_by: system
+
+  - name: "Relationship traversal"
+    question: "Show me all relationships between entities"
+    sql: |
+      SELECT REL_NAME, SRC_CLASS, SRC_NAME, DST_CLASS, DST_NAME
+      FROM OG_ONTOLOGY_DEMO.ONTOLOGY_VIEWS.REL_RESOLVED
+      ORDER BY REL_NAME, SRC_CLASS
+    verified_at: 1706640000
+    verified_by: system
+
+  - name: "Count assets by type"
+    question: "How many of each asset type are there?"
+    sql: |
+      SELECT SUBTYPE, COUNT(*) AS COUNT
+      FROM OG_ONTOLOGY_DEMO.ONTOLOGY_VIEWS.VW_ONT_ASSET
+      GROUP BY SUBTYPE
+      ORDER BY COUNT DESC
+    verified_at: 1706640000
+    verified_by: system

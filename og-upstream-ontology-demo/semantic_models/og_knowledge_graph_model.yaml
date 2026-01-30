@@ -1,0 +1,980 @@
+name: og_knowledge_graph
+description: O&G Upstream Knowledge Graph model - concrete entity views for fast, predictable queries on wells, fields, production, equipment, and facilities
+
+tables:
+  # =====================================================
+  # CONVENIENCE ENTITY VIEWS
+  # =====================================================
+  - name: V_WELLS
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: ONTOLOGY_VIEWS
+      table: V_WELLS
+    description: "View of all wells with extracted properties from KG_NODE"
+    dimensions:
+      - name: WELL_ID
+        expr: WELL_ID
+        data_type: STRING
+        description: Well node identifier (UUID)
+        synonyms:
+          - well_id
+          - node_id
+          - entity_id
+      - name: API_NUMBER
+        expr: API_NUMBER
+        data_type: STRING
+        sample_values:
+          - "42-329-12345"
+          - "42-301-67890"
+        description: American Petroleum Institute well number
+        synonyms:
+          - api
+          - well_number
+          - api_num
+      - name: WELL_NAME
+        expr: WELL_NAME
+        data_type: STRING
+        sample_values:
+          - "Diamondback Unit 3H"
+          - "Pioneer Ranch 2H"
+          - "Apache State 1H"
+        description: Well's operational name
+        synonyms:
+          - name
+          - well
+      - name: WELL_STATUS
+        expr: WELL_STATUS
+        data_type: STRING
+        sample_values:
+          - PRODUCING
+          - SHUT_IN
+          - DRILLING
+          - P&A
+        description: Current operational status of the well
+        synonyms:
+          - status
+          - operational_status
+      - name: WELL_TYPE
+        expr: WELL_TYPE
+        data_type: STRING
+        sample_values:
+          - OIL
+          - GAS
+          - INJECTION
+        description: Type of well based on primary product
+        synonyms:
+          - type
+          - product_type
+      - name: OPERATOR
+        expr: OPERATOR
+        data_type: STRING
+        sample_values:
+          - "Diamondback Energy"
+          - "Pioneer Natural Resources"
+          - "Apache Corporation"
+        description: Company operating the well
+        synonyms:
+          - company
+          - producer
+          - owner
+      - name: SPUD_DATE
+        expr: SPUD_DATE
+        data_type: DATE
+        description: Date drilling began
+        synonyms:
+          - drill_date
+          - start_date
+      - name: COMPLETION_DATE
+        expr: COMPLETION_DATE
+        data_type: DATE
+        description: Date well was completed
+        synonyms:
+          - completed
+          - completion
+    facts:
+      - name: TOTAL_DEPTH_FT
+        expr: TOTAL_DEPTH_FT
+        data_type: NUMBER
+        description: Total measured depth of the well in feet
+        synonyms:
+          - depth
+          - td
+          - total_depth
+      - name: LATITUDE
+        expr: LATITUDE
+        data_type: NUMBER
+        description: Well surface latitude
+      - name: LONGITUDE
+        expr: LONGITUDE
+        data_type: NUMBER
+        description: Well surface longitude
+    primary_key:
+      columns:
+        - WELL_ID
+
+  - name: V_FIELDS
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: ONTOLOGY_VIEWS
+      table: V_FIELDS
+    description: "View of all fields with extracted properties from KG_NODE"
+    dimensions:
+      - name: FIELD_ID
+        expr: FIELD_ID
+        data_type: STRING
+        description: Field node identifier
+        synonyms:
+          - field_id
+          - node_id
+      - name: FIELD_CODE
+        expr: FIELD_CODE
+        data_type: STRING
+        description: Field code identifier
+      - name: FIELD_NAME
+        expr: FIELD_NAME
+        data_type: STRING
+        sample_values:
+          - "Permian Basin - Midland"
+          - "Eagle Ford Shale"
+          - "Bakken Formation"
+        description: Field's official name
+        synonyms:
+          - name
+          - field
+      - name: BASIN
+        expr: BASIN
+        data_type: STRING
+        sample_values:
+          - "Permian"
+          - "Gulf Coast"
+          - "Williston"
+        description: Geological basin where the field is located
+        synonyms:
+          - play
+          - basin_name
+      - name: REGION
+        expr: REGION
+        data_type: STRING
+        sample_values:
+          - "West Texas"
+          - "South Texas"
+          - "North Dakota"
+        description: Geographic region
+        synonyms:
+          - area
+          - location
+      - name: COUNTRY
+        expr: COUNTRY
+        data_type: STRING
+        description: Country where the field is located
+    facts:
+      - name: TOTAL_AREA_ACRES
+        expr: TOTAL_AREA_ACRES
+        data_type: NUMBER
+        description: Total area of the field in acres
+        synonyms:
+          - area
+          - acreage
+      - name: ESTIMATED_OIL_RESERVES_MMBBL
+        expr: ESTIMATED_OIL_RESERVES_MMBBL
+        data_type: NUMBER
+        description: Estimated oil reserves in million barrels
+        synonyms:
+          - oil_reserves
+          - reserves
+      - name: ESTIMATED_GAS_RESERVES_BCF
+        expr: ESTIMATED_GAS_RESERVES_BCF
+        data_type: NUMBER
+        description: Estimated gas reserves in billion cubic feet
+        synonyms:
+          - gas_reserves
+    primary_key:
+      columns:
+        - FIELD_ID
+
+  - name: V_PRODUCTION
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: ONTOLOGY_VIEWS
+      table: V_PRODUCTION
+    description: "View of all production periods with volumes"
+    dimensions:
+      - name: PRODUCTION_ID
+        expr: PRODUCTION_ID
+        data_type: STRING
+        description: Production period node identifier
+      - name: PRODUCTION_CODE
+        expr: PRODUCTION_CODE
+        data_type: STRING
+        description: Production period code
+    time_dimensions:
+      - name: PERIOD_DATE
+        expr: PERIOD_DATE
+        data_type: DATE
+        description: Date of the production period
+        synonyms:
+          - date
+          - production_date
+    facts:
+      - name: OIL_VOLUME_BBL
+        expr: OIL_VOLUME_BBL
+        data_type: NUMBER
+        description: Oil production volume in barrels
+        synonyms:
+          - oil
+          - oil_volume
+          - bbl
+      - name: GAS_VOLUME_MCF
+        expr: GAS_VOLUME_MCF
+        data_type: NUMBER
+        description: Gas production volume in MCF
+        synonyms:
+          - gas
+          - gas_volume
+          - mcf
+      - name: WATER_VOLUME_BBL
+        expr: WATER_VOLUME_BBL
+        data_type: NUMBER
+        description: Water production volume in barrels
+        synonyms:
+          - water
+          - water_volume
+      - name: DAYS_ON_PRODUCTION
+        expr: DAYS_ON_PRODUCTION
+        data_type: NUMBER
+        description: Number of days producing
+        synonyms:
+          - days_on
+          - producing_days
+      - name: DOWNTIME_HOURS
+        expr: DOWNTIME_HOURS
+        data_type: NUMBER
+        description: Hours of downtime
+        synonyms:
+          - downtime
+      - name: UPTIME_PCT
+        expr: UPTIME_PCT
+        data_type: NUMBER
+        description: Uptime percentage
+        synonyms:
+          - uptime
+          - availability
+    primary_key:
+      columns:
+        - PRODUCTION_ID
+
+  - name: V_EQUIPMENT
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: ONTOLOGY_VIEWS
+      table: V_EQUIPMENT
+    description: "View of all equipment with extracted properties"
+    dimensions:
+      - name: EQUIPMENT_ID
+        expr: EQUIPMENT_ID
+        data_type: STRING
+        description: Equipment node identifier
+      - name: EQUIPMENT_CODE
+        expr: EQUIPMENT_CODE
+        data_type: STRING
+        description: Equipment code
+      - name: EQUIPMENT_NAME
+        expr: EQUIPMENT_NAME
+        data_type: STRING
+        description: Equipment name
+        synonyms:
+          - name
+          - equipment
+      - name: EQUIPMENT_TYPE
+        expr: EQUIPMENT_TYPE
+        data_type: STRING
+        sample_values:
+          - ESP
+          - ROD_PUMP
+          - COMPRESSOR
+          - SEPARATOR
+        description: Type of equipment
+        synonyms:
+          - type
+          - equipment_category
+      - name: MANUFACTURER
+        expr: MANUFACTURER
+        data_type: STRING
+        sample_values:
+          - "Baker Hughes"
+          - "Schlumberger"
+          - "Halliburton"
+        description: Equipment manufacturer
+        synonyms:
+          - make
+          - brand
+      - name: MODEL
+        expr: MODEL
+        data_type: STRING
+        description: Equipment model
+      - name: SERIAL_NUMBER
+        expr: SERIAL_NUMBER
+        data_type: STRING
+        description: Serial number
+      - name: EQUIPMENT_STATUS
+        expr: EQUIPMENT_STATUS
+        data_type: STRING
+        sample_values:
+          - OPERATIONAL
+          - FAILED
+          - MAINTENANCE
+        description: Current equipment status
+        synonyms:
+          - status
+          - condition
+    time_dimensions:
+      - name: INSTALL_DATE
+        expr: INSTALL_DATE
+        data_type: DATE
+        description: Date equipment was installed
+      - name: LAST_MAINTENANCE_DATE
+        expr: LAST_MAINTENANCE_DATE
+        data_type: DATE
+        description: Date of last maintenance
+      - name: FAILURE_DATE
+        expr: FAILURE_DATE
+        data_type: DATE
+        description: Date of failure (if failed)
+    primary_key:
+      columns:
+        - EQUIPMENT_ID
+
+  - name: V_FACILITIES
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: ONTOLOGY_VIEWS
+      table: V_FACILITIES
+    description: "View of all facilities with extracted properties"
+    dimensions:
+      - name: FACILITY_ID
+        expr: FACILITY_ID
+        data_type: STRING
+        description: Facility node identifier
+      - name: FACILITY_CODE
+        expr: FACILITY_CODE
+        data_type: STRING
+        description: Facility code
+      - name: FACILITY_NAME
+        expr: FACILITY_NAME
+        data_type: STRING
+        description: Facility name
+        synonyms:
+          - name
+          - facility
+      - name: FACILITY_TYPE
+        expr: FACILITY_TYPE
+        data_type: STRING
+        sample_values:
+          - CPF
+          - SEPARATOR
+          - TANK_BATTERY
+          - COMPRESSOR_STATION
+        description: Type of facility
+        synonyms:
+          - type
+    facts:
+      - name: PROCESSING_CAPACITY_BOPD
+        expr: PROCESSING_CAPACITY_BOPD
+        data_type: NUMBER
+        description: Processing capacity in barrels of oil per day
+        synonyms:
+          - capacity
+          - bopd
+    primary_key:
+      columns:
+        - FACILITY_ID
+
+  # =====================================================
+  # DENORMALIZED VIEWS FOR COMMON QUERIES
+  # =====================================================
+  - name: V_WELL_PRODUCTION
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: ONTOLOGY_VIEWS
+      table: V_WELL_PRODUCTION
+    description: "Denormalized view joining wells with their production data"
+    dimensions:
+      - name: WELL_ID
+        expr: WELL_ID
+        data_type: STRING
+        description: Well identifier
+      - name: API_NUMBER
+        expr: API_NUMBER
+        data_type: STRING
+        description: API well number
+      - name: WELL_NAME
+        expr: WELL_NAME
+        data_type: STRING
+        description: Well name
+      - name: WELL_STATUS
+        expr: WELL_STATUS
+        data_type: STRING
+        description: Well status
+      - name: WELL_TYPE
+        expr: WELL_TYPE
+        data_type: STRING
+        description: Well type
+      - name: OPERATOR
+        expr: OPERATOR
+        data_type: STRING
+        description: Operating company
+      - name: PRODUCTION_ID
+        expr: PRODUCTION_ID
+        data_type: STRING
+        description: Production period ID
+    time_dimensions:
+      - name: PERIOD_DATE
+        expr: PERIOD_DATE
+        data_type: DATE
+        description: Production period date
+      - name: PRODUCTION_MONTH
+        expr: PRODUCTION_MONTH
+        data_type: DATE
+        description: Production month (first day)
+        synonyms:
+          - month
+      - name: PRODUCTION_QUARTER
+        expr: PRODUCTION_QUARTER
+        data_type: DATE
+        description: Production quarter
+        synonyms:
+          - quarter
+      - name: PRODUCTION_YEAR
+        expr: PRODUCTION_YEAR
+        data_type: NUMBER
+        description: Production year
+        synonyms:
+          - year
+    facts:
+      - name: OIL_VOLUME_BBL
+        expr: OIL_VOLUME_BBL
+        data_type: NUMBER
+        description: Oil production in barrels
+        synonyms:
+          - oil
+          - oil_production
+      - name: GAS_VOLUME_MCF
+        expr: GAS_VOLUME_MCF
+        data_type: NUMBER
+        description: Gas production in MCF
+        synonyms:
+          - gas
+          - gas_production
+      - name: WATER_VOLUME_BBL
+        expr: WATER_VOLUME_BBL
+        data_type: NUMBER
+        description: Water production in barrels
+        synonyms:
+          - water
+      - name: DAYS_ON_PRODUCTION
+        expr: DAYS_ON_PRODUCTION
+        data_type: NUMBER
+        description: Days on production
+      - name: DOWNTIME_HOURS
+        expr: DOWNTIME_HOURS
+        data_type: NUMBER
+        description: Downtime hours
+      - name: UPTIME_PCT
+        expr: UPTIME_PCT
+        data_type: NUMBER
+        description: Uptime percentage
+        synonyms:
+          - uptime
+          - availability
+    primary_key:
+      columns:
+        - PRODUCTION_ID
+
+  - name: V_MONTHLY_WELL_RANKING
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: ONTOLOGY_VIEWS
+      table: V_MONTHLY_WELL_RANKING
+    description: "Wells ranked by monthly production - use for top producers queries"
+    dimensions:
+      - name: WELL_ID
+        expr: WELL_ID
+        data_type: STRING
+        description: Well identifier
+      - name: API_NUMBER
+        expr: API_NUMBER
+        data_type: STRING
+        description: API well number
+      - name: WELL_NAME
+        expr: WELL_NAME
+        data_type: STRING
+        description: Well name
+      - name: OPERATOR
+        expr: OPERATOR
+        data_type: STRING
+        description: Operating company
+      - name: FIELD_NAME
+        expr: FIELD_NAME
+        data_type: STRING
+        description: Field name
+      - name: BASIN
+        expr: BASIN
+        data_type: STRING
+        description: Basin name
+    time_dimensions:
+      - name: PERIOD_DATE
+        expr: PERIOD_DATE
+        data_type: DATE
+        description: Production period date
+      - name: PRODUCTION_MONTH
+        expr: PRODUCTION_MONTH
+        data_type: DATE
+        description: Production month
+        synonyms:
+          - month
+    facts:
+      - name: OIL_VOLUME_BBL
+        expr: OIL_VOLUME_BBL
+        data_type: NUMBER
+        description: Oil production in barrels
+        synonyms:
+          - oil
+          - oil_production
+      - name: GAS_VOLUME_MCF
+        expr: GAS_VOLUME_MCF
+        data_type: NUMBER
+        description: Gas production in MCF
+        synonyms:
+          - gas
+          - gas_production
+      - name: WATER_VOLUME_BBL
+        expr: WATER_VOLUME_BBL
+        data_type: NUMBER
+        description: Water production in barrels
+      - name: UPTIME_PCT
+        expr: UPTIME_PCT
+        data_type: NUMBER
+        description: Uptime percentage
+      - name: OIL_RANK
+        expr: OIL_RANK
+        data_type: NUMBER
+        description: Rank by oil production (1 = highest)
+        synonyms:
+          - oil_ranking
+          - rank
+      - name: GAS_RANK
+        expr: GAS_RANK
+        data_type: NUMBER
+        description: Rank by gas production (1 = highest)
+        synonyms:
+          - gas_ranking
+
+  - name: V_WELL_EQUIPMENT
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: ONTOLOGY_VIEWS
+      table: V_WELL_EQUIPMENT
+    description: "Wells joined with their installed equipment - use for equipment failure queries"
+    dimensions:
+      - name: WELL_ID
+        expr: WELL_ID
+        data_type: STRING
+        description: Well identifier
+      - name: API_NUMBER
+        expr: API_NUMBER
+        data_type: STRING
+        description: API well number
+      - name: WELL_NAME
+        expr: WELL_NAME
+        data_type: STRING
+        description: Well name
+      - name: WELL_STATUS
+        expr: WELL_STATUS
+        data_type: STRING
+        description: Well status
+      - name: OPERATOR
+        expr: OPERATOR
+        data_type: STRING
+        description: Operating company
+      - name: EQUIPMENT_ID
+        expr: EQUIPMENT_ID
+        data_type: STRING
+        description: Equipment identifier
+      - name: EQUIPMENT_CODE
+        expr: EQUIPMENT_CODE
+        data_type: STRING
+        description: Equipment code
+      - name: EQUIPMENT_NAME
+        expr: EQUIPMENT_NAME
+        data_type: STRING
+        description: Equipment name
+      - name: EQUIPMENT_TYPE
+        expr: EQUIPMENT_TYPE
+        data_type: STRING
+        sample_values:
+          - ESP
+          - ROD_PUMP
+          - COMPRESSOR
+        description: Type of equipment
+        synonyms:
+          - type
+      - name: MANUFACTURER
+        expr: MANUFACTURER
+        data_type: STRING
+        description: Equipment manufacturer
+      - name: MODEL
+        expr: MODEL
+        data_type: STRING
+        description: Equipment model
+      - name: SERIAL_NUMBER
+        expr: SERIAL_NUMBER
+        data_type: STRING
+        description: Serial number
+      - name: EQUIPMENT_STATUS
+        expr: EQUIPMENT_STATUS
+        data_type: STRING
+        sample_values:
+          - OPERATIONAL
+          - FAILED
+          - MAINTENANCE
+        description: Equipment status
+        synonyms:
+          - status
+      - name: IS_FAILED
+        expr: IS_FAILED
+        data_type: BOOLEAN
+        description: Whether equipment has failed
+        synonyms:
+          - failed
+          - failure
+    time_dimensions:
+      - name: INSTALL_DATE
+        expr: INSTALL_DATE
+        data_type: DATE
+        description: Installation date
+      - name: LAST_MAINTENANCE_DATE
+        expr: LAST_MAINTENANCE_DATE
+        data_type: DATE
+        description: Last maintenance date
+      - name: FAILURE_DATE
+        expr: FAILURE_DATE
+        data_type: DATE
+        description: Failure date (if failed)
+    facts:
+      - name: DAYS_SINCE_INSTALL
+        expr: DAYS_SINCE_INSTALL
+        data_type: NUMBER
+        description: Days since installation
+    primary_key:
+      columns:
+        - EQUIPMENT_ID
+
+  - name: V_SHUT_IN_WELLS
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: ONTOLOGY_VIEWS
+      table: V_SHUT_IN_WELLS
+    description: "Wells currently in shut-in status"
+    dimensions:
+      - name: WELL_ID
+        expr: WELL_ID
+        data_type: STRING
+        description: Well identifier
+      - name: API_NUMBER
+        expr: API_NUMBER
+        data_type: STRING
+        description: API well number
+      - name: WELL_NAME
+        expr: WELL_NAME
+        data_type: STRING
+        description: Well name
+      - name: WELL_STATUS
+        expr: WELL_STATUS
+        data_type: STRING
+        description: Well status (SHUT_IN)
+      - name: WELL_TYPE
+        expr: WELL_TYPE
+        data_type: STRING
+        description: Well type
+      - name: OPERATOR
+        expr: OPERATOR
+        data_type: STRING
+        description: Operating company
+      - name: FIELD_NAME
+        expr: FIELD_NAME
+        data_type: STRING
+        description: Field name
+      - name: BASIN
+        expr: BASIN
+        data_type: STRING
+        description: Basin name
+      - name: REGION
+        expr: REGION
+        data_type: STRING
+        description: Region
+    time_dimensions:
+      - name: COMPLETION_DATE
+        expr: COMPLETION_DATE
+        data_type: DATE
+        description: Completion date
+
+  - name: V_FIELD_PRODUCTION
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: ONTOLOGY_VIEWS
+      table: V_FIELD_PRODUCTION
+    description: "Aggregated production by field and time period"
+    dimensions:
+      - name: FIELD_ID
+        expr: FIELD_ID
+        data_type: STRING
+        description: Field identifier
+      - name: FIELD_CODE
+        expr: FIELD_CODE
+        data_type: STRING
+        description: Field code
+      - name: FIELD_NAME
+        expr: FIELD_NAME
+        data_type: STRING
+        description: Field name
+      - name: BASIN
+        expr: BASIN
+        data_type: STRING
+        description: Basin name
+      - name: REGION
+        expr: REGION
+        data_type: STRING
+        description: Region
+    time_dimensions:
+      - name: PERIOD_DATE
+        expr: PERIOD_DATE
+        data_type: DATE
+        description: Production period date
+      - name: PRODUCTION_MONTH
+        expr: PRODUCTION_MONTH
+        data_type: DATE
+        description: Production month
+      - name: PRODUCTION_QUARTER
+        expr: PRODUCTION_QUARTER
+        data_type: DATE
+        description: Production quarter
+      - name: PRODUCTION_YEAR
+        expr: PRODUCTION_YEAR
+        data_type: NUMBER
+        description: Production year
+    facts:
+      - name: WELL_COUNT
+        expr: WELL_COUNT
+        data_type: NUMBER
+        description: Number of wells producing
+        synonyms:
+          - wells
+          - num_wells
+      - name: TOTAL_OIL_BBL
+        expr: TOTAL_OIL_BBL
+        data_type: NUMBER
+        description: Total oil production in barrels
+        synonyms:
+          - oil
+          - total_oil
+      - name: TOTAL_GAS_MCF
+        expr: TOTAL_GAS_MCF
+        data_type: NUMBER
+        description: Total gas production in MCF
+        synonyms:
+          - gas
+          - total_gas
+      - name: TOTAL_WATER_BBL
+        expr: TOTAL_WATER_BBL
+        data_type: NUMBER
+        description: Total water production in barrels
+      - name: TOTAL_DAYS_ON_PRODUCTION
+        expr: TOTAL_DAYS_ON_PRODUCTION
+        data_type: NUMBER
+        description: Total producing days
+      - name: TOTAL_DOWNTIME_HOURS
+        expr: TOTAL_DOWNTIME_HOURS
+        data_type: NUMBER
+        description: Total downtime hours
+      - name: AVG_UPTIME_PCT
+        expr: AVG_UPTIME_PCT
+        data_type: NUMBER
+        description: Average uptime percentage (on-stream efficiency)
+        synonyms:
+          - uptime
+          - efficiency
+          - on_stream_efficiency
+
+  - name: V_PRODUCTION_TREND
+    base_table:
+      database: OG_ONTOLOGY_DEMO
+      schema: ONTOLOGY_VIEWS
+      table: V_PRODUCTION_TREND
+    description: "Month-over-month production changes for trend analysis"
+    dimensions:
+      - name: WELL_ID
+        expr: WELL_ID
+        data_type: STRING
+        description: Well identifier
+      - name: API_NUMBER
+        expr: API_NUMBER
+        data_type: STRING
+        description: API well number
+      - name: WELL_NAME
+        expr: WELL_NAME
+        data_type: STRING
+        description: Well name
+      - name: OPERATOR
+        expr: OPERATOR
+        data_type: STRING
+        description: Operating company
+    time_dimensions:
+      - name: PERIOD_DATE
+        expr: PERIOD_DATE
+        data_type: DATE
+        description: Production period date
+    facts:
+      - name: OIL_VOLUME_BBL
+        expr: OIL_VOLUME_BBL
+        data_type: NUMBER
+        description: Current month oil production
+      - name: GAS_VOLUME_MCF
+        expr: GAS_VOLUME_MCF
+        data_type: NUMBER
+        description: Current month gas production
+      - name: PREV_MONTH_OIL
+        expr: PREV_MONTH_OIL
+        data_type: NUMBER
+        description: Previous month oil production
+      - name: PREV_MONTH_GAS
+        expr: PREV_MONTH_GAS
+        data_type: NUMBER
+        description: Previous month gas production
+      - name: OIL_CHANGE_BBL
+        expr: OIL_CHANGE_BBL
+        data_type: NUMBER
+        description: Change in oil production (barrels)
+      - name: GAS_CHANGE_MCF
+        expr: GAS_CHANGE_MCF
+        data_type: NUMBER
+        description: Change in gas production (MCF)
+      - name: OIL_CHANGE_PCT
+        expr: OIL_CHANGE_PCT
+        data_type: NUMBER
+        description: Percentage change in oil production
+        synonyms:
+          - oil_trend
+          - decline_rate
+
+# Relationships between tables
+relationships:
+  - name: well_production_to_wells
+    left_table: V_WELL_PRODUCTION
+    right_table: V_WELLS
+    relationship_columns:
+      - left_column: WELL_ID
+        right_column: WELL_ID
+
+  - name: well_equipment_to_wells
+    left_table: V_WELL_EQUIPMENT
+    right_table: V_WELLS
+    relationship_columns:
+      - left_column: WELL_ID
+        right_column: WELL_ID
+
+  - name: well_ranking_to_wells
+    left_table: V_MONTHLY_WELL_RANKING
+    right_table: V_WELLS
+    relationship_columns:
+      - left_column: WELL_ID
+        right_column: WELL_ID
+
+  - name: production_trend_to_wells
+    left_table: V_PRODUCTION_TREND
+    right_table: V_WELLS
+    relationship_columns:
+      - left_column: WELL_ID
+        right_column: WELL_ID
+
+verified_queries:
+  - name: "Top 10 oil producers last month"
+    question: "Which 10 wells produced the most oil last month?"
+    sql: |
+      SELECT WELL_NAME, OPERATOR, FIELD_NAME, OIL_VOLUME_BBL, OIL_RANK
+      FROM OG_ONTOLOGY_DEMO.ONTOLOGY_VIEWS.V_MONTHLY_WELL_RANKING
+      WHERE PRODUCTION_MONTH = (SELECT MAX(PRODUCTION_MONTH) FROM OG_ONTOLOGY_DEMO.ONTOLOGY_VIEWS.V_MONTHLY_WELL_RANKING)
+      ORDER BY OIL_RANK
+      LIMIT 10
+    verified_at: 1706640000
+    verified_by: system
+
+  - name: "Top 10 gas producers last month"
+    question: "Which 10 wells produced the most gas last month?"
+    sql: |
+      SELECT WELL_NAME, OPERATOR, FIELD_NAME, GAS_VOLUME_MCF, GAS_RANK
+      FROM OG_ONTOLOGY_DEMO.ONTOLOGY_VIEWS.V_MONTHLY_WELL_RANKING
+      WHERE PRODUCTION_MONTH = (SELECT MAX(PRODUCTION_MONTH) FROM OG_ONTOLOGY_DEMO.ONTOLOGY_VIEWS.V_MONTHLY_WELL_RANKING)
+      ORDER BY GAS_RANK
+      LIMIT 10
+    verified_at: 1706640000
+    verified_by: system
+
+  - name: "ESP failures in last 90 days"
+    question: "Which wells have had ESP failures in the last 90 days?"
+    sql: |
+      SELECT WELL_NAME, OPERATOR, EQUIPMENT_NAME, MANUFACTURER, FAILURE_DATE
+      FROM OG_ONTOLOGY_DEMO.ONTOLOGY_VIEWS.V_WELL_EQUIPMENT
+      WHERE EQUIPMENT_TYPE = 'ESP' 
+        AND EQUIPMENT_STATUS = 'FAILED'
+        AND FAILURE_DATE >= DATEADD('DAY', -90, CURRENT_DATE())
+    verified_at: 1706640000
+    verified_by: system
+
+  - name: "Shut-in wells"
+    question: "Which wells are currently shut in?"
+    sql: |
+      SELECT WELL_NAME, WELL_TYPE, OPERATOR, FIELD_NAME, BASIN
+      FROM OG_ONTOLOGY_DEMO.ONTOLOGY_VIEWS.V_SHUT_IN_WELLS
+    verified_at: 1706640000
+    verified_by: system
+
+  - name: "On-stream efficiency by field"
+    question: "What was on-stream efficiency by field last quarter?"
+    sql: |
+      SELECT FIELD_NAME, BASIN, AVG(AVG_UPTIME_PCT) AS ON_STREAM_EFFICIENCY
+      FROM OG_ONTOLOGY_DEMO.ONTOLOGY_VIEWS.V_FIELD_PRODUCTION
+      WHERE PRODUCTION_QUARTER = DATE_TRUNC('QUARTER', DATEADD('QUARTER', -1, CURRENT_DATE()))
+      GROUP BY FIELD_NAME, BASIN
+      ORDER BY ON_STREAM_EFFICIENCY DESC
+    verified_at: 1706640000
+    verified_by: system
+
+  - name: "Declining production wells"
+    question: "Which wells are showing declining production?"
+    sql: |
+      SELECT WELL_NAME, OPERATOR, PERIOD_DATE, OIL_VOLUME_BBL, PREV_MONTH_OIL, OIL_CHANGE_PCT
+      FROM OG_ONTOLOGY_DEMO.ONTOLOGY_VIEWS.V_PRODUCTION_TREND
+      WHERE OIL_CHANGE_PCT < 0
+      ORDER BY OIL_CHANGE_PCT ASC
+    verified_at: 1706640000
+    verified_by: system
+
+  - name: "Production by operator"
+    question: "What is production by operator?"
+    sql: |
+      SELECT OPERATOR, SUM(OIL_VOLUME_BBL) AS TOTAL_OIL, SUM(GAS_VOLUME_MCF) AS TOTAL_GAS
+      FROM OG_ONTOLOGY_DEMO.ONTOLOGY_VIEWS.V_WELL_PRODUCTION
+      WHERE PRODUCTION_MONTH = (SELECT MAX(PRODUCTION_MONTH) FROM OG_ONTOLOGY_DEMO.ONTOLOGY_VIEWS.V_WELL_PRODUCTION)
+      GROUP BY OPERATOR
+      ORDER BY TOTAL_OIL DESC
+    verified_at: 1706640000
+    verified_by: system
+
+  - name: "Total oil production this month"
+    question: "What is total oil production this month across all wells?"
+    sql: |
+      SELECT SUM(OIL_VOLUME_BBL) AS TOTAL_OIL_BBL
+      FROM OG_ONTOLOGY_DEMO.ONTOLOGY_VIEWS.V_WELL_PRODUCTION
+      WHERE PRODUCTION_MONTH = (SELECT MAX(PRODUCTION_MONTH) FROM OG_ONTOLOGY_DEMO.ONTOLOGY_VIEWS.V_WELL_PRODUCTION)
+    verified_at: 1706640000
+    verified_by: system
