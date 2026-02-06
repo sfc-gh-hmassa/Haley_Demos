@@ -6,10 +6,10 @@ This demo shows how to build a **multi-agent system in Snowflake Intelligence** 
 
 | Concept | Description |
 |---------|-------------|
-| `EXECUTE AS CALLER` | Procedures run as the logged-in user, not the owner |
-| `_snowflake.send_snow_api_request()` | Internal API that inherits the caller's session |
-| Row Access Policies | Filter table rows based on `IS_ROLE_IN_SESSION()` |
-| Multi-Agent Routing | Orchestrator routes questions to specialized sub-agents |
+| `Cortex Analyst` | Sub-agents use Cortex Analyst to convert natural language to SQL |
+| `Row Access Policies` | Filter table rows based on `IS_ROLE_IN_SESSION()` |
+| `Multi-Agent Routing` | Orchestrator routes questions to specialized sub-agents |
+| `EXECUTE AS CALLER` | Orchestrator procedures run as the logged-in user |
 
 ## Architecture
 
@@ -22,21 +22,21 @@ ORCHESTRATOR_AGENT
     ├── CALL_SALES_AGENT (EXECUTE AS CALLER)
     │       │ calls REST API as the user
     │       ▼
-    │   SALES_AGENT → QUERY_SALES_DATA (EXECUTE AS CALLER)
+    │   SALES_AGENT → Cortex Analyst (sales_model.yaml)
     │       │
     │       ▼
     │   Row Access Policy filters by region
     │
     ├── CALL_FINANCE_AGENT (EXECUTE AS CALLER)
     │       ▼
-    │   FINANCE_AGENT → QUERY_FINANCE_DATA (EXECUTE AS CALLER)
+    │   FINANCE_AGENT → Cortex Analyst (finance_model.yaml)
     │       │
     │       ▼
     │   Row Access Policy filters by department
     │
     └── CALL_HR_AGENT (EXECUTE AS CALLER)
             ▼
-        HR_AGENT → QUERY_HR_DATA (EXECUTE AS CALLER)
+        HR_AGENT → Cortex Analyst (hr_model.yaml)
             │
             ▼
         Row Access Policy filters by department/region
@@ -53,7 +53,8 @@ Execute `01_setup.sql` in a Snowflake worksheet. This creates:
 - Database, schemas, and sample data
 - Row access policies
 - Test users and roles
-- Sub-agents (Sales, Finance, HR)
+- Stage for semantic models
+- Sub-agents (Sales, Finance, HR) using Cortex Analyst
 - Orchestrator agent
 
 ```sql
@@ -61,10 +62,34 @@ Execute `01_setup.sql` in a Snowflake worksheet. This creates:
 -- Execute 01_setup.sql
 ```
 
-### Step 2: Test the RBAC
+### Step 2: Upload Semantic Model Files
+After running the SQL setup, upload the YAML files to the stage:
+
+**Option A: Using Snowsight UI**
+1. Navigate to: Data → Databases → MULTI_AGENT_RBAC_DEMO → AGENTS → Stages → SEMANTIC_MODELS
+2. Click `+ Files` and upload all three YAML files from the `semantic_models/` folder:
+   - `sales_model.yaml`
+   - `finance_model.yaml`
+   - `hr_model.yaml`
+
+**Option B: Using Snowflake CLI**
+```bash
+snow stage copy semantic_models/sales_model.yaml @MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS/
+snow stage copy semantic_models/finance_model.yaml @MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS/
+snow stage copy semantic_models/hr_model.yaml @MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS/
+```
+
+**Option C: Using SQL PUT command**
+```sql
+PUT file:///path/to/semantic_models/sales_model.yaml @MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS AUTO_COMPRESS=FALSE;
+PUT file:///path/to/semantic_models/finance_model.yaml @MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS AUTO_COMPRESS=FALSE;
+PUT file:///path/to/semantic_models/hr_model.yaml @MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS AUTO_COMPRESS=FALSE;
+```
+
+### Step 3: Test the RBAC
 Execute `02_test_rbac.sql` to verify the row access policies work correctly.
 
-### Step 3: Test in Snowflake Intelligence
+### Step 4: Test in Snowflake Intelligence
 Log in as different test users and interact with the agents.
 
 ## Test Users
@@ -121,19 +146,22 @@ AS (region STRING) RETURNS BOOLEAN ->
     END;
 ```
 
-### 2. EXECUTE AS CALLER Procedures
-Procedures run as the calling user, so row access policies apply:
+### 2. Cortex Analyst with Semantic Models
+Each sub-agent uses Cortex Analyst to convert natural language to SQL. The semantic models define the schema:
 
-```sql
-CREATE PROCEDURE QUERY_SALES_DATA(query_type STRING)
-...
-EXECUTE AS CALLER  -- Key: runs as logged-in user
-AS
-$$
-    # This query runs as the CALLER, so row access policies filter the results
-    session.sql("SELECT * FROM SALES.OPPORTUNITIES")
-$$
+```yaml
+# sales_model.yaml
+tools:
+  - tool_spec:
+      type: "cortex_analyst_text_to_sql"
+      name: "sales_analyst"
+      description: "Query sales opportunities data"
+tool_resources:
+  sales_analyst:
+    semantic_model_file: "@MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS/sales_model.yaml"
 ```
+
+When Cortex Analyst generates and executes SQL, the Row Access Policies automatically filter results based on the user's role.
 
 ### 3. Sub-Agent Calls via REST API
 The `_snowflake.send_snow_api_request()` function inherits the caller's session:
@@ -148,11 +176,15 @@ resp = _snowflake.send_snow_api_request("POST", API_ENDPOINT, {}, {}, payload, N
 
 ## Files
 
-| File | Description |
-|------|-------------|
+| File/Folder | Description |
+|-------------|-------------|
 | `01_setup.sql` | Complete setup script - run once |
 | `02_test_rbac.sql` | Test queries to verify RBAC works |
 | `03_cleanup.sql` | Remove all demo objects |
+| `semantic_models/` | Cortex Analyst YAML semantic model files |
+| `semantic_models/sales_model.yaml` | Semantic model for SALES.OPPORTUNITIES |
+| `semantic_models/finance_model.yaml` | Semantic model for FINANCE.BUDGET |
+| `semantic_models/hr_model.yaml` | Semantic model for HR.EMPLOYEES |
 
 ## Cleanup
 
@@ -179,14 +211,21 @@ DROP ROLE IF EXISTS EXECUTIVE_ROLE;
 
 ### Agent says "privacy restrictions"
 The LLM may add extra caution. The agent instructions tell it not to, but if it persists:
-- Test with direct procedure calls: `CALL QUERY_HR_DATA('all');`
-- This proves the RBAC works at the database level
+- Test with direct SQL queries to verify RBAC works at the database level
+- Check that the semantic model files were uploaded correctly
 
 ### "Unable to connect to data sources" error
 Make sure you're selecting agents from `MULTI_AGENT_RBAC_DEMO.AGENTS` schema, not a different database.
+
+### "Semantic model not found" error
+Verify the YAML files were uploaded to the stage:
+```sql
+LIST @MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS;
+```
 
 ### Users can't access agents
 Ensure grants are in place:
 ```sql
 GRANT USAGE ON AGENT MULTI_AGENT_RBAC_DEMO.AGENTS.HR_AGENT TO ROLE <role_name>;
+GRANT READ ON STAGE MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS TO ROLE <role_name>;
 ```

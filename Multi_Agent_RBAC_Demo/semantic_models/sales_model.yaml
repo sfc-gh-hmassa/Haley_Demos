@@ -1,0 +1,139 @@
+name: sales_opportunities_model
+description: Semantic model for sales opportunities data. All data is filtered by Row Access Policies based on the user's role.
+
+tables:
+  - name: opportunities
+    description: Sales opportunities including deals, accounts, and pipeline data
+    base_table:
+      database: MULTI_AGENT_RBAC_DEMO
+      schema: SALES
+      table: OPPORTUNITIES
+    
+    primary_key:
+      columns:
+        - opportunity_id
+
+    dimensions:
+      - name: opportunity_id
+        synonyms:
+          - deal id
+          - opp id
+        description: Unique identifier for each sales opportunity
+        expr: OPPORTUNITY_ID
+        data_type: NUMBER
+        unique: true
+      
+      - name: account_name
+        synonyms:
+          - customer
+          - client
+          - company
+          - account
+        description: Name of the customer or prospect account
+        expr: ACCOUNT_NAME
+        data_type: TEXT
+      
+      - name: stage
+        synonyms:
+          - deal stage
+          - pipeline stage
+          - status
+        description: Current stage of the opportunity (Closed Won, Negotiation, Proposal)
+        expr: STAGE
+        data_type: TEXT
+        sample_values:
+          - Closed Won
+          - Negotiation
+          - Proposal
+      
+      - name: region
+        synonyms:
+          - territory
+          - area
+          - location
+        description: Geographic region for the opportunity (WEST, EAST, CENTRAL)
+        expr: REGION
+        data_type: TEXT
+        sample_values:
+          - WEST
+          - EAST
+          - CENTRAL
+      
+      - name: sales_rep
+        synonyms:
+          - rep
+          - salesperson
+          - account executive
+          - ae
+          - owner
+        description: Name of the sales representative assigned to the opportunity
+        expr: SALES_REP
+        data_type: TEXT
+      
+      - name: product
+        synonyms:
+          - product name
+          - offering
+          - solution
+        description: Product or solution being sold
+        expr: PRODUCT
+        data_type: TEXT
+        sample_values:
+          - Enterprise Platform
+          - Data Analytics
+          - Cloud Storage
+          - AI Suite
+
+    time_dimensions:
+      - name: close_date
+        synonyms:
+          - expected close
+          - closing date
+        description: Expected or actual close date of the opportunity
+        expr: CLOSE_DATE
+        data_type: DATE
+
+    facts:
+      - name: deal_value
+        synonyms:
+          - amount
+          - value
+          - deal size
+          - opportunity amount
+          - revenue
+        description: Dollar value of the opportunity
+        expr: DEAL_VALUE
+        data_type: NUMBER
+
+    metrics:
+      - name: total_pipeline
+        synonyms:
+          - pipeline value
+          - total deals
+          - total revenue
+        description: Sum of all deal values
+        expr: SUM(deal_value)
+      
+      - name: deal_count
+        synonyms:
+          - number of deals
+          - opportunity count
+          - count
+        description: Count of opportunities
+        expr: COUNT(*)
+      
+      - name: average_deal_size
+        synonyms:
+          - avg deal
+          - average value
+          - mean deal size
+        description: Average deal value
+        expr: AVG(deal_value)
+      
+      - name: won_revenue
+        synonyms:
+          - closed won revenue
+          - won deals
+          - closed revenue
+        description: Sum of deal values for Closed Won opportunities
+        expr: SUM(CASE WHEN stage = 'Closed Won' THEN deal_value ELSE 0 END)

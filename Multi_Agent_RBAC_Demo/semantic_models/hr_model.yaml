@@ -1,0 +1,150 @@
+name: hr_employees_model
+description: Semantic model for HR employee data. All data is filtered by Row Access Policies based on the user's role.
+
+tables:
+  - name: employees
+    description: Employee information including compensation, department, and tenure
+    base_table:
+      database: MULTI_AGENT_RBAC_DEMO
+      schema: HR
+      table: EMPLOYEES
+    
+    primary_key:
+      columns:
+        - employee_id
+
+    dimensions:
+      - name: employee_id
+        synonyms:
+          - emp id
+          - id
+        description: Unique identifier for each employee
+        expr: EMPLOYEE_ID
+        data_type: NUMBER
+        unique: true
+      
+      - name: name
+        synonyms:
+          - employee name
+          - full name
+          - person
+        description: Full name of the employee
+        expr: NAME
+        data_type: TEXT
+      
+      - name: title
+        synonyms:
+          - job title
+          - position
+          - role
+          - job
+        description: Job title of the employee
+        expr: TITLE
+        data_type: TEXT
+        sample_values:
+          - Sales Rep
+          - Sr Sales Rep
+          - Sales Manager
+          - Software Engineer
+          - Sr Engineer
+          - Data Scientist
+          - HR Specialist
+          - CEO
+          - CFO
+          - CTO
+      
+      - name: department
+        synonyms:
+          - dept
+          - team
+          - business unit
+        description: Department the employee belongs to (SALES, ENGINEERING, HR, EXECUTIVE)
+        expr: DEPARTMENT
+        data_type: TEXT
+        sample_values:
+          - SALES
+          - ENGINEERING
+          - HR
+          - EXECUTIVE
+      
+      - name: region
+        synonyms:
+          - location
+          - territory
+          - office
+        description: Geographic region where the employee is based
+        expr: REGION
+        data_type: TEXT
+        sample_values:
+          - WEST
+          - EAST
+          - CENTRAL
+          - HQ
+
+    time_dimensions:
+      - name: hire_date
+        synonyms:
+          - start date
+          - join date
+          - date hired
+        description: Date when the employee was hired
+        expr: HIRE_DATE
+        data_type: DATE
+
+    facts:
+      - name: salary
+        synonyms:
+          - compensation
+          - pay
+          - annual salary
+          - wage
+        description: Annual salary of the employee
+        expr: SALARY
+        data_type: NUMBER
+
+    metrics:
+      - name: headcount
+        synonyms:
+          - employee count
+          - number of employees
+          - staff count
+          - count
+        description: Count of employees
+        expr: COUNT(*)
+      
+      - name: total_payroll
+        synonyms:
+          - total salaries
+          - payroll cost
+          - total compensation
+        description: Sum of all salaries
+        expr: SUM(salary)
+      
+      - name: average_salary
+        synonyms:
+          - avg salary
+          - mean salary
+          - average compensation
+        description: Average salary across employees
+        expr: AVG(salary)
+      
+      - name: min_salary
+        synonyms:
+          - minimum salary
+          - lowest salary
+        description: Minimum salary
+        expr: MIN(salary)
+      
+      - name: max_salary
+        synonyms:
+          - maximum salary
+          - highest salary
+          - top salary
+        description: Maximum salary
+        expr: MAX(salary)
+      
+      - name: median_salary
+        synonyms:
+          - median compensation
+        description: Median salary
+        expr: MEDIAN(salary)

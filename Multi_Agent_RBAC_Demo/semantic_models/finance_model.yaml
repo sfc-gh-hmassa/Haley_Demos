@@ -1,0 +1,143 @@
+name: finance_budget_model
+description: Semantic model for finance budget data. All data is filtered by Row Access Policies based on the user's role.
+
+tables:
+  - name: budget
+    description: Department budgets including allocations, spending, and variances
+    base_table:
+      database: MULTI_AGENT_RBAC_DEMO
+      schema: FINANCE
+      table: BUDGET
+    
+    primary_key:
+      columns:
+        - budget_id
+
+    dimensions:
+      - name: budget_id
+        description: Unique identifier for each budget line item
+        expr: BUDGET_ID
+        data_type: NUMBER
+        unique: true
+      
+      - name: department
+        synonyms:
+          - dept
+          - business unit
+          - team
+        description: Department name (SALES, ENGINEERING, HR, EXECUTIVE)
+        expr: DEPARTMENT
+        data_type: TEXT
+        sample_values:
+          - SALES
+          - ENGINEERING
+          - HR
+          - EXECUTIVE
+      
+      - name: category
+        synonyms:
+          - budget category
+          - expense type
+          - cost category
+          - line item
+        description: Budget category or expense type
+        expr: CATEGORY
+        data_type: TEXT
+        sample_values:
+          - Marketing
+          - Travel
+          - Training
+          - Cloud Infrastructure
+          - Software Licenses
+          - R&D
+          - Recruiting
+      
+      - name: fiscal_year
+        synonyms:
+          - year
+          - fy
+        description: Fiscal year for the budget
+        expr: FISCAL_YEAR
+        data_type: NUMBER
+        sample_values:
+          - 2025
+      
+      - name: quarter
+        synonyms:
+          - fiscal quarter
+          - qtr
+        description: Fiscal quarter (Q1, Q2, Q3, Q4)
+        expr: QUARTER
+        data_type: TEXT
+        sample_values:
+          - Q1
+          - Q2
+          - Q3
+          - Q4
+
+    facts:
+      - name: allocated_amount
+        synonyms:
+          - budget
+          - allocation
+          - budgeted amount
+          - planned spend
+        description: Amount allocated for the budget line item
+        expr: ALLOCATED_AMOUNT
+        data_type: NUMBER
+      
+      - name: spent_amount
+        synonyms:
+          - spend
+          - actual spend
+          - expenditure
+          - expenses
+          - actual
+        description: Amount actually spent
+        expr: SPENT_AMOUNT
+        data_type: NUMBER
+
+    metrics:
+      - name: total_budget
+        synonyms:
+          - total allocation
+          - total budgeted
+        description: Sum of all allocated amounts
+        expr: SUM(allocated_amount)
+      
+      - name: total_spent
+        synonyms:
+          - total spend
+          - total expenses
+        description: Sum of all spent amounts
+        expr: SUM(spent_amount)
+      
+      - name: remaining_budget
+        synonyms:
+          - remaining
+          - unspent
+          - available budget
+        description: Difference between allocated and spent amounts
+        expr: SUM(allocated_amount - spent_amount)
+      
+      - name: variance
+        synonyms:
+          - budget variance
+          - over/under
+        description: Difference between spent and allocated (negative means under budget)
+        expr: SUM(spent_amount - allocated_amount)
+      
+      - name: utilization_rate
+        synonyms:
+          - percent used
+          - budget utilization
+          - spend rate
+        description: Percentage of budget that has been spent
+        expr: ROUND(SUM(spent_amount) / NULLIF(SUM(allocated_amount), 0) * 100, 1)
+      
+      - name: category_count
+        synonyms:
+          - number of categories
+          - line item count
+        description: Count of budget line items
+        expr: COUNT(*)

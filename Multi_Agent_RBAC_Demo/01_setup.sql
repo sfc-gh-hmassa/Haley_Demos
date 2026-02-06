@@ -29,6 +29,11 @@ CREATE SCHEMA HR;
 CREATE SCHEMA AGENTS;
 CREATE SCHEMA TOOLS;
 
+-- Create stage for semantic models (used by Cortex Analyst)
+CREATE OR REPLACE STAGE AGENTS.SEMANTIC_MODELS
+    DIRECTORY = (ENABLE = TRUE)
+    COMMENT = 'Stage for storing Cortex Analyst semantic model YAML files';
+
 -- ============================================================================
 -- STEP 2: CREATE ROLES
 -- ============================================================================
@@ -581,7 +586,7 @@ orchestration:
     tokens: 4000
 instructions:
   system: |
-    You are a Sales data assistant.
+    You are a Sales data assistant powered by Cortex Analyst.
     
     PERMISSION NOTICE: All data returned by your tools has ALREADY been filtered by Snowflake Row Access Policies based on the user's role. The database security layer ensures users only see data they are authorized to access.
     
@@ -592,21 +597,12 @@ instructions:
     Display all data returned by tools. No disclaimers needed - permissions are handled automatically.
 tools:
   - tool_spec:
-      type: "generic"
-      name: "query_sales"
-      description: "Query sales data. Types: summary, pipeline, top_deals, or all"
-      input_schema:
-        type: object
-        properties:
-          query_type:
-            type: string
-        required: [query_type]
+      type: "cortex_analyst_text_to_sql"
+      name: "sales_analyst"
+      description: "Query sales opportunities data including deals, pipeline, accounts, and revenue"
 tool_resources:
-  query_sales:
-    type: procedure
-    identifier: MULTI_AGENT_RBAC_DEMO.TOOLS.QUERY_SALES_DATA
-    execution_environment:
-      type: warehouse
+  sales_analyst:
+    semantic_model_file: "@MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS/sales_model.yaml"
 $$;
 
 -- Finance Agent
@@ -622,7 +618,7 @@ orchestration:
     tokens: 4000
 instructions:
   system: |
-    You are a Finance data assistant.
+    You are a Finance data assistant powered by Cortex Analyst.
     
     PERMISSION NOTICE: All data returned by your tools has ALREADY been filtered by Snowflake Row Access Policies based on the user's role. The database security layer ensures users only see data they are authorized to access.
     
@@ -633,21 +629,12 @@ instructions:
     Display all data returned by tools. No disclaimers needed - permissions are handled automatically.
 tools:
   - tool_spec:
-      type: "generic"
-      name: "query_finance"
-      description: "Query budget data. Types: summary, variance, or all"
-      input_schema:
-        type: object
-        properties:
-          query_type:
-            type: string
-        required: [query_type]
+      type: "cortex_analyst_text_to_sql"
+      name: "finance_analyst"
+      description: "Query budget and finance data including allocations, spending, and variances"
 tool_resources:
-  query_finance:
-    type: procedure
-    identifier: MULTI_AGENT_RBAC_DEMO.TOOLS.QUERY_FINANCE_DATA
-    execution_environment:
-      type: warehouse
+  finance_analyst:
+    semantic_model_file: "@MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS/finance_model.yaml"
 $$;
 
 -- HR Agent
@@ -663,7 +650,7 @@ orchestration:
     tokens: 4000
 instructions:
   system: |
-    You are an HR data assistant.
+    You are an HR data assistant powered by Cortex Analyst.
     
     PERMISSION NOTICE: All data returned by your tools has ALREADY been filtered by Snowflake Row Access Policies based on the user's role. The database security layer ensures users only see data they are authorized to access.
     
@@ -679,21 +666,12 @@ instructions:
     Display all data returned by tools in a clear format. Show individual salaries. No disclaimers needed.
 tools:
   - tool_spec:
-      type: "generic"
-      name: "query_hr"
-      description: "Query employee data. Types: headcount, compensation, or all (individual employees)"
-      input_schema:
-        type: object
-        properties:
-          query_type:
-            type: string
-        required: [query_type]
+      type: "cortex_analyst_text_to_sql"
+      name: "hr_analyst"
+      description: "Query employee data including headcount, compensation, and department details"
 tool_resources:
-  query_hr:
-    type: procedure
-    identifier: MULTI_AGENT_RBAC_DEMO.TOOLS.QUERY_HR_DATA
-    execution_environment:
-      type: warehouse
+  hr_analyst:
+    semantic_model_file: "@MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS/hr_model.yaml"
 $$;
 
 -- Orchestrator Agent
@@ -779,13 +757,21 @@ $$;
 -- STEP 10: GRANT PERMISSIONS ON PROCEDURES AND AGENTS
 -- ============================================================================
 
--- Grant procedure usage
+-- Grant procedure usage (still needed for orchestrator's sub-agent calls)
 GRANT USAGE ON ALL PROCEDURES IN SCHEMA MULTI_AGENT_RBAC_DEMO.TOOLS TO ROLE SALES_WEST_ROLE;
 GRANT USAGE ON ALL PROCEDURES IN SCHEMA MULTI_AGENT_RBAC_DEMO.TOOLS TO ROLE SALES_EAST_ROLE;
 GRANT USAGE ON ALL PROCEDURES IN SCHEMA MULTI_AGENT_RBAC_DEMO.TOOLS TO ROLE SALES_MANAGER_ROLE;
 GRANT USAGE ON ALL PROCEDURES IN SCHEMA MULTI_AGENT_RBAC_DEMO.TOOLS TO ROLE FINANCE_ANALYST_ROLE;
 GRANT USAGE ON ALL PROCEDURES IN SCHEMA MULTI_AGENT_RBAC_DEMO.TOOLS TO ROLE HR_ROLE;
 GRANT USAGE ON ALL PROCEDURES IN SCHEMA MULTI_AGENT_RBAC_DEMO.TOOLS TO ROLE EXECUTIVE_ROLE;
+
+-- Grant stage read access for semantic models (required for Cortex Analyst)
+GRANT READ ON STAGE MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS TO ROLE SALES_WEST_ROLE;
+GRANT READ ON STAGE MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS TO ROLE SALES_EAST_ROLE;
+GRANT READ ON STAGE MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS TO ROLE SALES_MANAGER_ROLE;
+GRANT READ ON STAGE MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS TO ROLE FINANCE_ANALYST_ROLE;
+GRANT READ ON STAGE MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS TO ROLE HR_ROLE;
+GRANT READ ON STAGE MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS TO ROLE EXECUTIVE_ROLE;
 
 -- Grant agent usage
 GRANT USAGE ON ALL AGENTS IN SCHEMA MULTI_AGENT_RBAC_DEMO.AGENTS TO ROLE SALES_WEST_ROLE;
@@ -799,4 +785,4 @@ GRANT USAGE ON ALL AGENTS IN SCHEMA MULTI_AGENT_RBAC_DEMO.AGENTS TO ROLE EXECUTI
 -- SETUP COMPLETE!
 -- ============================================================================
 
-SELECT 'Setup complete! Test with different users in Snowflake Intelligence.' as STATUS;
+SELECT 'Setup complete! Upload semantic model YAML files to the stage before testing.' as STATUS;
