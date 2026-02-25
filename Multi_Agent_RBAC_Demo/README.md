@@ -1,231 +1,186 @@
-# Multi-Agent Orchestration with Row-Based Access Control (RBAC)
+# Multi-Agent RBAC Demo
 
-This demo shows how to build a **multi-agent system in Snowflake Intelligence** where each user sees only the data they're authorized to access, based on their role.
+Demonstrates how Cortex Agents respect row-level security policies in Snowflake. An orchestrator agent routes queries to specialized sub-agents (Sales, Finance, HR), and each user sees only the data their role permits.
 
-## Key Concepts
+## Demo Questions to Ask
 
-| Concept | Description |
-|---------|-------------|
-| `Cortex Analyst` | Sub-agents use Cortex Analyst to convert natural language to SQL |
-| `Row Access Policies` | Filter table rows based on `IS_ROLE_IN_SESSION()` |
-| `Multi-Agent Routing` | Orchestrator routes questions to specialized sub-agents |
-| `EXECUTE AS CALLER` | Orchestrator procedures run as the logged-in user |
+### Single-Agent Questions (Orchestrator routes to one agent)
+
+**Sales Questions:**
+- "What are my top sales opportunities?"
+- "Show me deals in the pipeline"
+- "What sales do I have access to?"
+- "Who are my top performing sales reps?"
+
+**Finance Questions:**
+- "Show me the budget summary"
+- "Which departments are over budget?"
+- "What's our Q1 spending?"
+
+**HR Questions:**
+- "How many employees do I have access to?"
+- "Show me the team roster"
+- "Who was hired recently?"
+
+### Multi-Agent Questions (Orchestrator routes to multiple agents)
+- "Give me a complete business overview - sales pipeline, budget status, and team size"
+- "What's happening across sales and finance?"
+- "Show me everything I have access to"
+
+### RBAC Demo Questions (Show different results per role)
+
+| Question | SALES_WEST_ROLE sees | EXECUTIVE_ROLE sees |
+|----------|---------------------|---------------------|
+| "Show my sales" | Only WEST region deals | All regions |
+| "Show the budget" | Only SALES dept budget | All departments |
+| "Show employees" | Only WEST region staff | All employees |
+
+### Demo Flow Script
+
+1. **Login as EXECUTIVE_USER** → "Show me all sales opportunities"
+   - Shows all 15 opportunities across all regions
+   
+2. **Login as SALES_REP_WEST** → "Show me all sales opportunities"  
+   - Shows only 5 WEST region opportunities
+   
+3. **Ask orchestrator** → "What's my sales pipeline and current budget?"
+   - Routes to both SALES_AGENT and FINANCE_AGENT
+   - Each returns data filtered by the user's role
 
 ## Architecture
 
 ```
-User (logged into Snowflake Intelligence)
-    │
-    ▼
-ORCHESTRATOR_AGENT
-    │ routes to appropriate sub-agent
-    ├── CALL_SALES_AGENT (EXECUTE AS CALLER)
-    │       │ calls REST API as the user
-    │       ▼
-    │   SALES_AGENT → Cortex Analyst (sales_model.yaml)
-    │       │
-    │       ▼
-    │   Row Access Policy filters by region
-    │
-    ├── CALL_FINANCE_AGENT (EXECUTE AS CALLER)
-    │       ▼
-    │   FINANCE_AGENT → Cortex Analyst (finance_model.yaml)
-    │       │
-    │       ▼
-    │   Row Access Policy filters by department
-    │
-    └── CALL_HR_AGENT (EXECUTE AS CALLER)
-            ▼
-        HR_AGENT → Cortex Analyst (hr_model.yaml)
-            │
-            ▼
-        Row Access Policy filters by department/region
+                          USER QUERY
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │  ORCHESTRATOR_AGENT │
+                    │   (Routes queries)  │
+                    └──────────┬──────────┘
+                               │
+           ┌───────────────────┼───────────────────┐
+           │                   │                   │
+           ▼                   ▼                   ▼
+    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+    │ SALES_AGENT │    │FINANCE_AGENT│    │  HR_AGENT   │
+    │             │    │             │    │             │
+    │ Opportunities│   │   Budget    │    │  Employees  │
+    │ (by Region) │    │ (by Dept)   │    │(by Dept/Rgn)│
+    └─────────────┘    └─────────────┘    └─────────────┘
+           │                   │                   │
+           ▼                   ▼                   ▼
+    ┌─────────────────────────────────────────────────┐
+    │            ROW ACCESS POLICIES                   │
+    │  User sees only data their role permits          │
+    └─────────────────────────────────────────────────┘
 ```
 
-## Setup Instructions
+## Key Features
 
-### Prerequisites
-- Snowflake account with ACCOUNTADMIN role
-- A warehouse (the demo uses `COMPUTE_WH` - modify if needed)
+- **Caller's Rights**: Stored procedures use `EXECUTE AS CALLER` so row policies apply based on the calling user's role
+- **Thread Tracking**: Each call includes a `threadId` for monitoring in Snowsight
+- **DATA_AGENT_RUN**: Uses SQL function instead of REST API for nested agent calls
 
-### Step 1: Run the Setup Script
-Execute `01_setup.sql` in a Snowflake worksheet. This creates:
-- Database, schemas, and sample data
-- Row access policies
-- Test users and roles
-- Stage for semantic models
-- Sub-agents (Sales, Finance, HR) using Cortex Analyst
-- Orchestrator agent
+## Roles and Access
 
+| Role | Sales Data | Finance Data | HR Data |
+|------|------------|--------------|---------|
+| SALES_WEST_ROLE | WEST region only | SALES dept only | WEST region only |
+| SALES_EAST_ROLE | EAST region only | None | EAST region only |
+| SALES_MANAGER_ROLE | All regions | SALES dept only | SALES dept only |
+| FINANCE_ANALYST_ROLE | None | All except EXECUTIVE | None |
+| HR_ROLE | None | HR dept only | All except EXECUTIVE |
+| EXECUTIVE_ROLE | All | All | All |
+
+## Setup
+
+### 1. Run the setup script
 ```sql
--- Run in Snowsight as ACCOUNTADMIN
--- Execute 01_setup.sql
+-- Run sql/setup.sql in Snowsight or SnowSQL
 ```
 
-### Step 2: Upload Semantic Model Files
-After running the SQL setup, upload the YAML files to the stage:
+### 2. Create Agents in Snowsight UI
 
-**Option A: Using Snowsight UI**
-1. Navigate to: Data → Databases → MULTI_AGENT_RBAC_DEMO → AGENTS → Stages → SEMANTIC_MODELS
-2. Click `+ Files` and upload all three YAML files from the `semantic_models/` folder:
-   - `sales_model.yaml`
-   - `finance_model.yaml`
-   - `hr_model.yaml`
+Navigate to **AI & ML → Agents** and create:
 
-**Option B: Using Snowflake CLI**
-```bash
-snow stage copy semantic_models/sales_model.yaml @MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS/
-snow stage copy semantic_models/finance_model.yaml @MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS/
-snow stage copy semantic_models/hr_model.yaml @MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS/
-```
+#### SALES_AGENT
+- **Database**: MULTI_AGENT_RBAC_DEMO
+- **Schema**: AGENTS
+- **About**: "Sales data agent - queries opportunities based on user access"
+- **Semantic Model**: Add your sales semantic model YAML
 
-**Option C: Using SQL PUT command**
+#### FINANCE_AGENT
+- **Database**: MULTI_AGENT_RBAC_DEMO
+- **Schema**: AGENTS
+- **About**: "Finance data agent - queries budget data based on user access"
+- **Semantic Model**: Add your finance semantic model YAML
+
+#### HR_AGENT
+- **Database**: MULTI_AGENT_RBAC_DEMO
+- **Schema**: AGENTS
+- **About**: "HR data agent - queries employee data based on user access"
+- **Semantic Model**: Add your HR semantic model YAML
+
+#### ORCHESTRATOR_AGENT
+- **Database**: MULTI_AGENT_RBAC_DEMO
+- **Schema**: AGENTS
+- **About**: "Main orchestrator agent - routes queries to specialized sub-agents"
+- **Tools**: Add custom tools pointing to the stored procedures:
+  - `CALL_SALES_AGENT(VARCHAR)` → TOOLS schema
+  - `CALL_FINANCE_AGENT(VARCHAR)` → TOOLS schema
+  - `CALL_HR_AGENT(VARCHAR)` → TOOLS schema
+
+### 3. Run agent grants (Part 11 in setup.sql)
+
+After creating agents, run the GRANT statements from Part 11.
+
+## Testing
+
+### Test as different roles:
 ```sql
-PUT file:///path/to/semantic_models/sales_model.yaml @MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS AUTO_COMPRESS=FALSE;
-PUT file:///path/to/semantic_models/finance_model.yaml @MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS AUTO_COMPRESS=FALSE;
-PUT file:///path/to/semantic_models/hr_model.yaml @MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS AUTO_COMPRESS=FALSE;
+-- As Sales West Rep
+USE ROLE SALES_WEST_ROLE;
+CALL MULTI_AGENT_RBAC_DEMO.TOOLS.CALL_SALES_AGENT('show my deals');
+-- Returns only WEST region opportunities
+
+-- As Executive
+USE ROLE EXECUTIVE_ROLE;
+CALL MULTI_AGENT_RBAC_DEMO.TOOLS.CALL_SALES_AGENT('show all deals');
+-- Returns all opportunities
 ```
 
-### Step 3: Test the RBAC
-Execute `02_test_rbac.sql` to verify the row access policies work correctly.
-
-### Step 4: Test in Snowflake Intelligence
-Log in as different test users and interact with the agents.
-
-## Test Users
-
-| Username | Password | Role | Data Access |
-|----------|----------|------|-------------|
-| `SALES_REP_WEST` | `DemoPassword123!` | `SALES_WEST_ROLE` | WEST region sales only |
-| `SALES_REP_EAST` | `DemoPassword123!` | `SALES_EAST_ROLE` | EAST region sales only |
-| `SALES_MANAGER_USER` | `DemoPassword123!` | `SALES_MANAGER_ROLE` | All sales, SALES budget/HR |
-| `FINANCE_ANALYST_USER` | `DemoPassword123!` | `FINANCE_ANALYST_ROLE` | All budgets except EXECUTIVE |
-| `HR_REP_USER` | `DemoPassword123!` | `HR_ROLE` | All employees except EXECUTIVE |
-| `EXECUTIVE_USER` | `DemoPassword123!` | `EXECUTIVE_ROLE` | **Everything** |
-
-## Test Questions
-
-### Sales Agent
-> "List all sales opportunities with deal values"
-
-| User | Expected Result |
-|------|-----------------|
-| `SALES_REP_WEST` | 5 deals, WEST only (~$775K) |
-| `SALES_REP_EAST` | 5 deals, EAST only (~$1.45M) |
-| `EXECUTIVE_USER` | 15 deals, all regions (~$3.26M) |
-
-### Finance Agent
-> "Show budget by department"
-
-| User | Expected Result |
-|------|-----------------|
-| `FINANCE_ANALYST_USER` | 3 depts (no EXECUTIVE) ~$2.78M |
-| `EXECUTIVE_USER` | 4 depts (incl EXECUTIVE $3.25M) |
-
-### HR Agent
-> "List all employees with salaries"
-
-| User | Expected Result |
-|------|-----------------|
-| `HR_REP_USER` | 13 employees (no EXECUTIVE dept) |
-| `EXECUTIVE_USER` | 16 employees (incl CEO $450K) |
-
-## How It Works
-
-### 1. Row Access Policies
-Policies evaluate `IS_ROLE_IN_SESSION()` to filter rows:
-
+### Test orchestrator:
 ```sql
-CREATE ROW ACCESS POLICY sales_region_policy
-AS (region STRING) RETURNS BOOLEAN ->
-    CASE
-        WHEN IS_ROLE_IN_SESSION('EXECUTIVE_ROLE') THEN TRUE
-        WHEN IS_ROLE_IN_SESSION('SALES_WEST_ROLE') AND region = 'WEST' THEN TRUE
-        WHEN IS_ROLE_IN_SESSION('SALES_EAST_ROLE') AND region = 'EAST' THEN TRUE
-        ELSE FALSE
-    END;
+-- Query the orchestrator in Snowsight UI
+-- "What are my top sales opportunities and current budget?"
+-- Will route to both SALES_AGENT and FINANCE_AGENT
 ```
 
-### 2. Cortex Analyst with Semantic Models
-Each sub-agent uses Cortex Analyst to convert natural language to SQL. The semantic models define the schema:
+## Technical Notes
 
-```yaml
-# sales_model.yaml
-tools:
-  - tool_spec:
-      type: "cortex_analyst_text_to_sql"
-      name: "sales_analyst"
-      description: "Query sales opportunities data"
-tool_resources:
-  sales_analyst:
-    semantic_model_file: "@MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS/sales_model.yaml"
+### Thread ID
+The stored procedures include `threadId` in the DATA_AGENT_RUN payload for tracking:
+- Use camelCase `threadId` (not `thread_id` with underscore)
+- Track in Snowsight Monitoring tab
+
+### JSON Payload Format
+```json
+{
+  "threadId": "uuid-string",
+  "messages": [{
+    "role": "user",
+    "content": [{"type": "text", "text": "query here"}]
+  }]
+}
 ```
 
-When Cortex Analyst generates and executes SQL, the Row Access Policies automatically filter results based on the user's role.
-
-### 3. Sub-Agent Calls via REST API
-The `_snowflake.send_snow_api_request()` function inherits the caller's session:
-
-```python
-# Inside CALL_SALES_AGENT procedure (EXECUTE AS CALLER)
-API_ENDPOINT = "/api/v2/databases/DB/schemas/SCHEMA/agents/SALES_AGENT:run"
-
-# This call runs AS THE LOGGED-IN USER
-resp = _snowflake.send_snow_api_request("POST", API_ENDPOINT, {}, {}, payload, None, 60000)
+### Error Handling
+Procedures return error details if DATA_AGENT_RUN fails:
+```
+ERROR: <message> | SQLCODE: <code>
 ```
 
 ## Files
 
-| File/Folder | Description |
-|-------------|-------------|
-| `01_setup.sql` | Complete setup script - run once |
-| `02_test_rbac.sql` | Test queries to verify RBAC works |
-| `03_cleanup.sql` | Remove all demo objects |
-| `semantic_models/` | Cortex Analyst YAML semantic model files |
-| `semantic_models/sales_model.yaml` | Semantic model for SALES.OPPORTUNITIES |
-| `semantic_models/finance_model.yaml` | Semantic model for FINANCE.BUDGET |
-| `semantic_models/hr_model.yaml` | Semantic model for HR.EMPLOYEES |
-
-## Cleanup
-
-To remove all demo objects:
-
-```sql
--- Run 03_cleanup.sql or:
-DROP DATABASE IF EXISTS MULTI_AGENT_RBAC_DEMO;
-DROP USER IF EXISTS SALES_REP_WEST;
-DROP USER IF EXISTS SALES_REP_EAST;
-DROP USER IF EXISTS SALES_MANAGER_USER;
-DROP USER IF EXISTS FINANCE_ANALYST_USER;
-DROP USER IF EXISTS HR_REP_USER;
-DROP USER IF EXISTS EXECUTIVE_USER;
-DROP ROLE IF EXISTS SALES_WEST_ROLE;
-DROP ROLE IF EXISTS SALES_EAST_ROLE;
-DROP ROLE IF EXISTS SALES_MANAGER_ROLE;
-DROP ROLE IF EXISTS FINANCE_ANALYST_ROLE;
-DROP ROLE IF EXISTS HR_ROLE;
-DROP ROLE IF EXISTS EXECUTIVE_ROLE;
-```
-
-## Troubleshooting
-
-### Agent says "privacy restrictions"
-The LLM may add extra caution. The agent instructions tell it not to, but if it persists:
-- Test with direct SQL queries to verify RBAC works at the database level
-- Check that the semantic model files were uploaded correctly
-
-### "Unable to connect to data sources" error
-Make sure you're selecting agents from `MULTI_AGENT_RBAC_DEMO.AGENTS` schema, not a different database.
-
-### "Semantic model not found" error
-Verify the YAML files were uploaded to the stage:
-```sql
-LIST @MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS;
-```
-
-### Users can't access agents
-Ensure grants are in place:
-```sql
-GRANT USAGE ON AGENT MULTI_AGENT_RBAC_DEMO.AGENTS.HR_AGENT TO ROLE <role_name>;
-GRANT READ ON STAGE MULTI_AGENT_RBAC_DEMO.AGENTS.SEMANTIC_MODELS TO ROLE <role_name>;
-```
+- `sql/setup.sql` - Complete setup script with all DDL, data, and grants
+- `README.md` - This file
