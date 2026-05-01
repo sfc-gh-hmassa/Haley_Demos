@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DCGPU ML Auto-Recommender — Architecture Deep Dive</title>
+<style>
+  :root {
+    --sf-blue: #29B5E8;
+    --sf-dark: #11567F;
+    --sf-navy: #052848;
+    --sf-light: #E5F5FC;
+    --sf-ice: #F0FAFF;
+    --green: #16A34A;
+    --orange: #D97706;
+    --purple: #7C3AED;
+    --red: #DC2626;
+    --pink: #DB2777;
+    --text: #1E293B;
+    --text2: #475569;
+    --muted: #94A3B8;
+    --border: #CBD5E1;
+    --shadow: 0 2px 8px rgba(17,86,127,0.10);
+    --radius: 10px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:linear-gradient(135deg,#F8FBFF,#EEF6FC); color:var(--text); line-height:1.5; }
+
+  /* Header */
+  .hdr { background:linear-gradient(135deg,var(--sf-navy),var(--sf-dark)); color:#fff; padding:36px 48px 32px; position:relative; overflow:hidden; }
+  .hdr::before { content:''; position:absolute; top:-40%; right:-10%; width:500px; height:500px; background:radial-gradient(circle,rgba(41,181,232,0.15),transparent 70%); border-radius:50%; }
+  .hdr-top { display:flex; align-items:center; gap:14px; margin-bottom:8px; position:relative; z-index:1; }
+  .hdr-logo { width:36px; height:36px; background:var(--sf-blue); border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px; }
+  .hdr-badge { background:rgba(41,181,232,0.2); border:1px solid rgba(41,181,232,0.35); color:var(--sf-blue); font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px; letter-spacing:0.5px; text-transform:uppercase; }
+  .hdr h1 { font-size:28px; font-weight:700; letter-spacing:-0.5px; position:relative; z-index:1; }
+  .hdr p { color:rgba(255,255,255,0.7); font-size:15px; margin-top:6px; position:relative; z-index:1; }
+
+  .page { max-width:1220px; margin:0 auto; padding:0 32px 64px; }
+
+  /* Section titles */
+  .stitle { font-size:20px; font-weight:700; color:var(--sf-dark); margin:48px 0 6px; display:flex; align-items:center; gap:10px; }
+  .stitle .n { background:var(--sf-blue); color:#fff; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; flex-shrink:0; }
+  .sdesc { font-size:14px; color:var(--text2); margin-bottom:24px; }
+
+  /* Cards */
+  .card { background:#fff; border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
+  .card-hdr { padding:14px 22px; font-weight:700; font-size:14px; border-bottom:1px solid #F1F5F9; display:flex; align-items:center; gap:10px; }
+  .card-body { padding:20px 22px; }
+
+  /* Flow diagrams */
+  .flow-h { display:flex; align-items:center; gap:0; margin:20px 0; flex-wrap:wrap; }
+  .flow-box { background:#fff; border:2px solid var(--border); border-radius:var(--radius); padding:16px 20px; text-align:center; min-width:140px; flex:1; }
+  .flow-box.active { border-color:var(--sf-blue); background:var(--sf-ice); }
+  .flow-box.warn { border-color:#F59E0B; background:#FFFBEB; }
+  .flow-box h4 { font-size:13px; font-weight:700; margin-bottom:2px; }
+  .flow-box p { font-size:11px; color:var(--text2); line-height:1.35; }
+  .flow-arr { color:var(--sf-blue); font-size:20px; font-weight:700; padding:0 6px; flex-shrink:0; }
+  .flow-arr.warn-arr { color:#F59E0B; }
+
+  /* Tag chips */
+  .tag { display:inline-block; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px; }
+  .tag-blue { background:var(--sf-light); color:var(--sf-dark); }
+  .tag-orange { background:#FEF3E2; color:#92400E; }
+  .tag-green { background:#DCFCE7; color:#166534; }
+  .tag-purple { background:#F3E8FF; color:#6B21A8; }
+  .tag-red { background:#FEE2E2; color:#991B1B; }
+  .tag-pink { background:#FCE7F3; color:#9D174D; }
+
+  /* Tool chips */
+  .tc { display:inline-block; font-size:11px; font-weight:600; padding:3px 10px; border-radius:12px; border:1px solid; margin:2px; }
+  .tc-sql { background:#EFF6FF; color:#1D4ED8; border-color:#BFDBFE; }
+  .tc-py { background:#FEF3E2; color:#92400E; border-color:#FDE68A; }
+  .tc-ml { background:var(--sf-light); color:var(--sf-dark); border-color:#B3E5FC; }
+  .tc-bash { background:#F1F5F9; color:#475569; border-color:#CBD5E1; }
+  .tc-reg { background:#DCFCE7; color:#166534; border-color:#86EFAC; }
+  .tc-spcs { background:#FCE7F3; color:#9D174D; border-color:#F9A8D4; }
+
+  /* Callouts */
+  .callout { border-radius:8px; padding:14px 18px; font-size:13px; display:flex; align-items:flex-start; gap:10px; margin:16px 0; }
+  .callout.info { background:var(--sf-light); border:1px solid #B3E5FC; color:var(--sf-dark); }
+  .callout.ok { background:#DCFCE7; border:1px solid #86EFAC; color:#166534; }
+  .callout.warn { background:#FEF3E2; border:1px solid #FDE68A; color:#92400E; }
+  .ci { font-size:16px; flex-shrink:0; margin-top:1px; }
+
+  /* Subagent grid */
+  .sa-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .sa-grid.full { grid-template-columns:1fr; }
+  .sa-card { background:#fff; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); }
+  .sa-hdr { padding:13px 20px; display:flex; align-items:center; gap:10px; font-weight:700; font-size:14px; border-bottom:1px solid #F1F5F9; }
+  .sa-num { width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; color:#fff; flex-shrink:0; }
+  .sa-type { font-size:10px; font-weight:600; padding:2px 8px; border-radius:10px; text-transform:uppercase; letter-spacing:0.4px; margin-left:auto; }
+  .sa-body { padding:16px 20px; }
+  .sa-desc { font-size:12.5px; color:var(--text2); line-height:1.5; margin-bottom:14px; }
+  .sa-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:var(--muted); margin:14px 0 6px; }
+  .sa-label:first-child { margin-top:0; }
+  .sa-list { list-style:none; padding:0; }
+  .sa-list li { font-size:12px; color:var(--text2); padding:2px 0 2px 14px; position:relative; }
+  .sa-list li::before { content:''; position:absolute; left:0; top:9px; width:6px; height:6px; border-radius:50%; }
+  .sa-list.green li::before { background:var(--green); }
+  .sa-list.blue li::before { background:var(--sf-blue); }
+  .sa-list.purple li::before { background:var(--purple); }
+
+  /* Header colors per card */
+  .sa-card.c1 .sa-hdr { background:linear-gradient(135deg,#E0F7FA,#B2EBF2); color:var(--sf-dark); }
+  .sa-card.c1 .sa-num { background:var(--sf-blue); }
+  .sa-card.c1 .sa-type { background:var(--sf-light); color:var(--sf-dark); }
+  .sa-card.c2 .sa-hdr { background:linear-gradient(135deg,#F3E8FF,#E9D5FF); color:#6B21A8; }
+  .sa-card.c2 .sa-num { background:var(--purple); }
+  .sa-card.c2 .sa-type { background:#F3E8FF; color:#6B21A8; }
+  .sa-card.c3 .sa-hdr { background:linear-gradient(135deg,#DCFCE7,#BBF7D0); color:#166534; }
+  .sa-card.c3 .sa-num { background:var(--green); }
+  .sa-card.c3 .sa-type { background:#DCFCE7; color:#166534; }
+  .sa-card.c4 .sa-hdr { background:linear-gradient(135deg,#FEF3E2,#FDE8CC); color:#92400E; }
+  .sa-card.c4 .sa-num { background:var(--orange); }
+  .sa-card.c4 .sa-type { background:#FEF3E2; color:#92400E; }
+  .sa-card.c5 .sa-hdr { background:linear-gradient(135deg,#FCE7F3,#FBCFE8); color:#9D174D; }
+  .sa-card.c5 .sa-num { background:var(--pink); }
+  .sa-card.c5 .sa-type { background:#FCE7F3; color:#9D174D; }
+
+  /* Code / file tree */
+  .tree { background:var(--sf-navy); color:#E2E8F0; border-radius:var(--radius); padding:22px 24px; font-family:'SF Mono','Fira Code',monospace; font-size:12.5px; line-height:2; box-shadow:0 4px 16px rgba(5,40,72,0.25); }
+  .tree .t-title { color:var(--sf-blue); font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; font-family:-apple-system,sans-serif; }
+  .t-dir { color:#93C5FD; }
+  .t-file { color:#E2E8F0; }
+  .t-hl { color:#FCD34D; font-weight:700; }
+  .t-cm { color:#64748B; font-style:italic; font-size:11px; }
+
+  /* Comparison table */
+  .cmp { width:100%; border-collapse:separate; border-spacing:0; border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); border:1px solid var(--border); background:#fff; }
+  .cmp th { padding:12px 18px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; text-align:left; border-bottom:2px solid var(--border); }
+  .cmp th:first-child { background:#F8FAFC; width:22%; }
+  .cmp th.cur { background:#FEF3E2; color:#92400E; }
+  .cmp th.pro { background:var(--sf-light); color:var(--sf-dark); }
+  .cmp td { padding:12px 18px; font-size:13px; color:var(--text2); border-bottom:1px solid #F1F5F9; vertical-align:top; line-height:1.45; }
+  .cmp tr:last-child td { border-bottom:none; }
+  .cmp td:first-child { font-weight:700; color:var(--text); }
+  .bad { color:var(--red); font-weight:600; }
+  .good { color:var(--green); font-weight:600; }
+
+  /* Two-col layout */
+  .two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+
+  /* Responsive */
+  @media (max-width:900px) {
+    .sa-grid, .two-col { grid-template-columns:1fr; }
+    .flow-h { flex-direction:column; }
+    .flow-arr { transform:rotate(90deg); }
+  }
+  .footer { margin-top:48px; padding-top:24px; border-top:1px solid var(--border); text-align:center; color:var(--muted); font-size:12px; }
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-top">
+    <div class="hdr-logo">&#10052;</div>
+    <span class="hdr-badge">Architecture Deep Dive</span>
+  </div>
+  <h1>DCGPU ML Auto-Recommender Agent</h1>
+  <p>From 8 local MCP servers to a Cortex Code skill with 5 subagents, running on SPCS, orchestrated via the Cortex Code Agent SDK</p>
+</div>
+
+<div class="page">
+
+<!-- ═══════════ 1. WHAT THEY HAVE TODAY ═══════════ -->
+<h2 class="stitle"><span class="n">1</span> What Lisa Has Today</h2>
+<p class="sdesc">The current POC is a set of MCP servers running on a local Windows machine against CSV files. Here's how it works end-to-end.</p>
+
+<div class="flow-h">
+  <div class="flow-box warn">
+    <span class="tag tag-orange">Step 1</span>
+    <h4>User provides CSV</h4>
+    <p>Local file on Windows disk<br><code style="font-size:10px;">C:\data\AMD_DC_GPU\*.csv</code></p>
+  </div>
+  <div class="flow-arr warn-arr">&#10140;</div>
+  <div class="flow-box warn">
+    <span class="tag tag-orange">Step 2</span>
+    <h4>Recommender MCP</h4>
+    <p>Analyzes data characteristics:<br>linearity, FFT, class balance,<br>separability, feature types</p>
+  </div>
+  <div class="flow-arr warn-arr">&#10140;</div>
+  <div class="flow-box warn">
+    <span class="tag tag-orange">Step 3</span>
+    <h4>Scores 9 Algorithms</h4>
+    <p>XGBoost, RF, LightGBM, LR,<br>NB, SVM-Linear, SVM-RBF,<br>Linear Reg, Pearson</p>
+  </div>
+  <div class="flow-arr warn-arr">&#10140;</div>
+  <div class="flow-box warn">
+    <span class="tag tag-red">Step 4</span>
+    <h4>Delegates to 1 of 8 MCPs</h4>
+    <p>Each algo = separate server<br>separate venv, separate deps<br>hardcoded Windows paths</p>
+  </div>
+  <div class="flow-arr warn-arr">&#10140;</div>
+  <div class="flow-box warn">
+    <span class="tag tag-red">Step 5</span>
+    <h4>Saves .pkl locally</h4>
+    <p>No versioning, no registry,<br>no access control, no lineage</p>
+  </div>
+</div>
+
+<div class="callout warn">
+  <span class="ci">&#9888;</span>
+  <div>
+    <strong>Key pain points:</strong> 8 separate MCP servers with 8 Python venvs. Data must be exported to CSV. Models saved as local .pkl files. The "train" function in the recommender doesn't actually train -- it prints instructions to call another MCP. Each new algorithm = a new MCP server + new venv + new subprocess wiring.
+  </div>
+</div>
+
+<h3 style="font-size:15px; font-weight:700; color:var(--sf-dark); margin:24px 0 12px;">How the Recommender MCP Actually Works</h3>
+<div class="two-col">
+  <div class="card">
+    <div class="card-hdr" style="background:#FEF3E2; color:#92400E;">analyze_csv() + analyze_fft_patterns()</div>
+    <div class="card-body">
+      <ul class="sa-list blue" style="margin-bottom:12px;">
+        <li>Reads CSV with pandas</li>
+        <li>Counts samples, features, missing values</li>
+        <li>Identifies numeric vs categorical columns</li>
+        <li>Computes Pearson correlation per feature vs target (avg_linearity)</li>
+        <li>Tests linear separability with a Perceptron (100 iter convergence)</li>
+        <li>Checks multicollinearity (correlation matrix > 0.8)</li>
+        <li>FFT: computes power spectrum per feature, compares pass vs fail groups</li>
+        <li>Mann-Whitney U test for statistical significance of FFT differences</li>
+      </ul>
+      <p style="font-size:12px; color:var(--text2);"><strong>Output:</strong> A characteristics dict with ~12 fields that drive scoring.</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr" style="background:#FEF3E2; color:#92400E;">score_algorithm() &mdash; the scoring engine</div>
+    <div class="card-body">
+      <p style="font-size:12px; color:var(--text2); margin-bottom:10px;">Each algorithm has hand-tuned scoring rules based on data characteristics. Example for XGBoost:</p>
+      <ul class="sa-list purple">
+        <li>+30 if samples >= 100</li>
+        <li>+25 if linearity < 0.5 (non-linear)</li>
+        <li>+15 if has categorical features</li>
+        <li>+15 if features > 10</li>
+        <li>+10 if class imbalanced</li>
+        <li>-20 if samples < 50 (overfit risk)</li>
+        <li>+20 if FFT shows strong frequency patterns</li>
+      </ul>
+      <p style="font-size:12px; color:var(--text2); margin-top:10px;"><strong>~560 lines of scoring logic.</strong> Pure Python, no Snowflake dependency. Lifts as-is into our architecture.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════ 1b. WHY 1 MCP PER MODEL DOESN'T SCALE ═══════════ -->
+<h3 style="font-size:15px; font-weight:700; color:var(--sf-dark); margin:28px 0 12px;">Why 1 MCP Per Model Doesn't Scale</h3>
+<p class="sdesc" style="margin-top:0;">All 8 training MCPs do the same thing: load data, preprocess, fit, evaluate, save. The only difference is which model class they instantiate. Isolating each into a separate server was a workaround for dependency conflicts, not a design choice.</p>
+
+<div class="two-col">
+  <div class="card">
+    <div class="card-hdr" style="background:#FEE2E2; color:#991B1B;">Adding a New Algorithm Today</div>
+    <div class="card-body">
+      <ol style="font-size:13px; color:var(--text2); line-height:1.7; padding-left:18px;">
+        <li>Create a new directory: <code>MCP_new_algo/</code></li>
+        <li>Create a new Python venv: <code>python -m venv venv</code></li>
+        <li>Install all dependencies into that venv</li>
+        <li>Write a new <code>server.py</code> MCP server (~200 lines of boilerplate)</li>
+        <li>Add the MCP tool definitions (input schema, handler, output)</li>
+        <li>Write the training logic inside the new server</li>
+        <li>Update the recommender's <code>get_mcp_paths()</code> with hardcoded Windows path</li>
+        <li>Add scoring rules in <code>score_algorithm()</code> for the new algo</li>
+        <li>Test the new MCP server independently</li>
+        <li>Test the recommender &rarr; new MCP handoff</li>
+      </ol>
+      <p style="font-size:12px; color:var(--red); font-weight:600; margin-top:12px;">~10 steps, ~300+ lines of new code, a new venv, a new subprocess to manage.</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr" style="background:#DCFCE7; color:#166534;">Adding a New Algorithm in Our Architecture</div>
+    <div class="card-body">
+      <ol style="font-size:13px; color:var(--text2); line-height:1.7; padding-left:18px;">
+        <li>Add one line to the model registry dict in <code>train_model.py</code>:</li>
+      </ol>
+      <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:6px; padding:12px 16px; font-family:'SF Mono','Fira Code',monospace; font-size:12px; color:var(--text2); line-height:1.7; margin:8px 0 12px;">
+<span style="color:var(--sf-dark); font-weight:700;">MODELS</span> = {<br>
+&nbsp;&nbsp;<span style="color:#64748B;"># existing algorithms...</span><br>
+&nbsp;&nbsp;"xgboost": XGBClassifier,<br>
+&nbsp;&nbsp;"random_forest": RandomForestClassifier,<br>
+&nbsp;&nbsp;"lightgbm": LGBMClassifier,<br>
+&nbsp;&nbsp;"logistic_regression": LogisticRegression,<br>
+&nbsp;&nbsp;<span style="color:var(--green); font-weight:700;">"catboost": CatBoostClassifier,&nbsp;&nbsp;# NEW</span><br>
+}
+      </div>
+      <ol start="2" style="font-size:13px; color:var(--text2); line-height:1.7; padding-left:18px;">
+        <li>Add scoring rules in <code>score_algorithms.py</code> (~20 lines)</li>
+        <li>Add <code>catboost</code> to the Dockerfile deps (one line)</li>
+        <li>Done. Same container, same subagent, same workflow.</li>
+      </ol>
+      <p style="font-size:12px; color:var(--green); font-weight:600; margin-top:12px;">~4 steps, ~25 lines changed, zero new infrastructure.</p>
+    </div>
+  </div>
+</div>
+
+<div class="callout ok">
+  <span class="ci">&#10003;</span>
+  <div>
+    <strong>The core insight:</strong> Training is a generic pattern -- load, preprocess, fit, evaluate, register. The only variable is the model class. One script with a dict mapping handles all current and future algorithms. Testing a new model type is as fast as adding a key to the dict and rerunning.
+  </div>
+</div>
+
+
+<!-- ═══════════ 2. OUR ARCHITECTURE ═══════════ -->
+<h2 class="stitle"><span class="n">2</span> Our Architecture: Agentic, Not Scripted</h2>
+<p class="sdesc">The key shift: the LLM is in the loop making decisions, not just executing a fixed pipeline. Scripts are <strong>tools the agent can call</strong>, not a hardcoded sequence. The agent reasons about results, adapts when things go wrong, and naturally extends to new model types without code changes.</p>
+
+<h3 style="font-size:15px; font-weight:700; color:var(--sf-dark); margin:20px 0 12px;">Fixed Pipeline vs. Agentic</h3>
+<div class="two-col">
+  <div class="card">
+    <div class="card-hdr" style="background:#FEF3E2; color:#92400E;">Fixed Pipeline (what hardcoded scripts give you)</div>
+    <div class="card-body">
+      <ul class="sa-list blue">
+        <li>Always runs the same 7 profiling checks</li>
+        <li>Always uses the same hand-tuned scoring rules</li>
+        <li>Always trains with default hyperparameters</li>
+        <li>If the model performs poorly, a human investigates</li>
+        <li>Adding a new model type requires code changes</li>
+        <li>Can't handle unexpected data issues (high nulls, weird distributions)</li>
+      </ul>
+      <p style="font-size:12px; color:var(--orange); font-weight:600; margin-top:10px;">This is just rebuilding what Lisa has, but in Snowflake.</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr" style="background:#DCFCE7; color:#166534;">Agentic (what Cortex Code gives you)</div>
+    <div class="card-body">
+      <ul class="sa-list green">
+        <li>Agent <strong>looks at profiling results</strong> and reasons: "high class imbalance + non-linear patterns &rarr; weight tree models higher"</li>
+        <li>If model underperforms, agent <strong>adapts</strong>: "F1 is 0.62, let me try tuning hyperparameters or the #2 recommendation"</li>
+        <li>Agent <strong>flags data issues</strong>: "47% missing in column X -- should we impute or drop?"</li>
+        <li>As new models appear in snowflake.ml, agent <strong>naturally supports them</strong> without code changes</li>
+        <li>Agent can <strong>explain its reasoning</strong> in plain English to the non-technical user</li>
+        <li>Agent can <strong>iterate</strong>: profile &rarr; recommend &rarr; train &rarr; evaluate &rarr; "not good enough" &rarr; try again with different approach</li>
+      </ul>
+      <p style="font-size:12px; color:var(--green); font-weight:600; margin-top:10px;">This is what makes it an agent, not a pipeline.</p>
+    </div>
+  </div>
+</div>
+
+<h3 style="font-size:15px; font-weight:700; color:var(--sf-dark); margin:28px 0 12px;">Architecture Flow</h3>
+<p class="sdesc" style="margin-top:0;">The Cortex Code agent orchestrates tools (scripts + SQL + Snowpark). It decides what to run, interprets results, and adapts. Scripts run on SPCS for full library freedom.</p>
+
+<div class="flow-h">
+  <div class="flow-box">
+    <span class="tag tag-green">Input</span>
+    <h4>CSV Upload or<br>Snowflake Table</h4>
+    <p>User drops a CSV or points<br>to an existing table</p>
+  </div>
+  <div class="flow-arr">&#10140;</div>
+  <div class="flow-box active">
+    <span class="tag tag-blue">Tool</span>
+    <h4>Profile Data</h4>
+    <p>Agent runs profiling,<br><strong>interprets</strong> results</p>
+  </div>
+  <div class="flow-arr">&#10140;</div>
+  <div class="flow-box active">
+    <span class="tag tag-purple">Reasoning</span>
+    <h4>Recommend<br>Algorithm</h4>
+    <p>Agent reasons about<br>best fit, <strong>explains why</strong></p>
+  </div>
+  <div class="flow-arr">&#10140;</div>
+  <div class="flow-box active">
+    <span class="tag tag-green">Tool</span>
+    <h4>Train Model</h4>
+    <p>Agent trains, evaluates,<br><strong>retries if needed</strong></p>
+  </div>
+  <div class="flow-arr">&#10140;</div>
+  <div class="flow-box active">
+    <span class="tag tag-orange">Tool</span>
+    <h4>Feature Report</h4>
+    <p>Agent extracts features,<br><strong>narrates insights</strong></p>
+  </div>
+  <div class="flow-arr">&#10140;</div>
+  <div class="flow-box active">
+    <span class="tag tag-pink">Tool</span>
+    <h4>Register &amp;<br>Deploy</h4>
+    <p>Agent registers model,<br><strong>sets up inference</strong></p>
+  </div>
+</div>
+
+<div class="callout info">
+  <span class="ci">&#9881;</span>
+  <div>
+    <strong>Why SPCS?</strong> Running on a container means full library freedom: <code>pip install</code> anything (scipy, shap, xgboost, lightgbm, catboost). No Anaconda channel restrictions. The container runs inside Snowflake, so data governance is preserved.
+  </div>
+</div>
+
+<h3 style="font-size:15px; font-weight:700; color:var(--sf-dark); margin:24px 0 12px;">What "Agentic" Looks Like in Practice</h3>
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-hdr" style="background:var(--sf-light); color:var(--sf-dark);">Example: Agent Conversation</div>
+  <div class="card-body">
+    <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:6px; padding:16px 20px; font-size:13px; color:var(--text2); line-height:1.8;">
+      <strong style="color:var(--text);">User:</strong> Analyze DCGPU_DB.TEST_DATA.WAFER_RESULTS targeting PASS_FAIL and train the best model<br><br>
+      <strong style="color:var(--sf-dark);">Agent:</strong> I'll start by profiling your table.<br>
+      <span style="color:var(--muted); font-style:italic;">[runs profile_data tool on SPCS]</span><br><br>
+      <strong style="color:var(--sf-dark);">Agent:</strong> Here's what I found:<br>
+      &bull; 12,400 rows, 47 features (43 numeric, 4 categorical)<br>
+      &bull; Class balance is 0.31 -- <strong style="color:var(--orange);">significant imbalance</strong> (70% pass, 30% fail)<br>
+      &bull; Average linearity is 0.18 -- relationships are non-linear<br>
+      &bull; FFT analysis shows strong frequency patterns in 6 features<br>
+      &bull; No multicollinearity issues<br><br>
+      Based on this profile, I recommend <strong>XGBoost</strong> (score: 95) because it handles non-linear patterns, class imbalance, and benefits from the FFT frequency signals. Random Forest is #2, LightGBM is #3.<br><br>
+      Shall I train XGBoost, or would you prefer to try a different algorithm?<br><br>
+      <strong style="color:var(--text);">User:</strong> Go ahead with XGBoost<br><br>
+      <strong style="color:var(--sf-dark);">Agent:</strong> Training XGBoost with class_weight='balanced' to handle the imbalance...<br>
+      <span style="color:var(--muted); font-style:italic;">[runs train_model tool on SPCS]</span><br><br>
+      <strong style="color:var(--sf-dark);">Agent:</strong> Training complete. Results:<br>
+      &bull; Accuracy: 0.91, F1: 0.87, AUC: 0.94<br>
+      &bull; Top 3 features driving failure: TEMP_ZONE_3 (23%), VOLTAGE_DELTA (18%), CYCLE_TIME (12%)<br><br>
+      I've registered this as <code>DCGPU_PASS_FAIL_V1</code> in the Model Registry. Would you like me to set up scheduled inference on new data?
+    </div>
+  </div>
+</div>
+
+<div class="callout ok">
+  <span class="ci">&#10003;</span>
+  <div>
+    <strong>Key difference from a pipeline:</strong> The agent noticed the class imbalance and automatically added <code>class_weight='balanced'</code>. It asked before training. It combined the feature report into the training results. It offered next steps. A fixed pipeline can't do any of this -- it would just train with defaults and return numbers.
+  </div>
+</div>
+
+<h3 style="font-size:15px; font-weight:700; color:var(--sf-dark); margin:24px 0 12px;">Delivery Surface</h3>
+<div class="flow-h" style="max-width:800px;">
+  <div class="flow-box active">
+    <span class="tag tag-blue">Phase 1: Now</span>
+    <h4>Cortex Code CLI</h4>
+    <p>Build &amp; demo the skill +<br>tools. Fastest to iterate.</p>
+  </div>
+  <div class="flow-arr">&#10140;</div>
+  <div class="flow-box">
+    <span class="tag tag-green">Phase 2: Production</span>
+    <h4>Cortex Agent /<br>Streamlit</h4>
+    <p>Same tools, exposed via<br>Snowflake Intelligence<br>or a Streamlit app.</p>
+  </div>
+  <div class="flow-arr">&#10140;</div>
+  <div class="flow-box">
+    <span class="tag tag-purple">Phase 3: Scale</span>
+    <h4>CoCo Agent SDK</h4>
+    <p>Headless SDK (when GA)<br>for React apps, APIs,<br>or scheduled jobs.</p>
+  </div>
+</div>
+
+
+<!-- ═══════════ 3. THE 5 SUBAGENTS ═══════════ -->
+<h2 class="stitle"><span class="n">3</span> The 5 Subagents</h2>
+<p class="sdesc">Each subagent is a general-purpose child agent launched via the <code>Task</code> tool. It gets a prompt, has access to tools, runs a Python script, and returns JSON to the orchestrator. Scripts run on SPCS.</p>
+
+<div class="sa-grid">
+
+  <!-- SA1: Data Profiler -->
+  <div class="sa-card c1">
+    <div class="sa-hdr">
+      <div class="sa-num">1</div>
+      Data Profiler
+      <div class="sa-type">Subagent</div>
+    </div>
+    <div class="sa-body">
+      <div class="sa-desc">Handles CSV upload or Snowflake table input. Profiles the data: schema, row count, linearity, FFT patterns, class balance, feature types, multicollinearity. Direct port of Lisa's <code>analyze_csv()</code> + <code>analyze_fft_patterns()</code>.</div>
+
+      <div class="sa-label">What this subagent does</div>
+      <ul class="sa-list blue">
+        <li>If CSV: upload to Snowflake stage, COPY INTO a table</li>
+        <li>If table: validate it exists, DESCRIBE schema</li>
+        <li>Sample data, compute row count, null %, class balance</li>
+        <li>Pearson correlations per feature vs target</li>
+        <li>FFT separability analysis (pass vs fail frequency patterns)</li>
+        <li>Perceptron convergence test for linear separability</li>
+        <li>Correlation matrix for multicollinearity check</li>
+      </ul>
+
+      <div class="sa-label">Tools &amp; Libraries</div>
+      <div>
+        <span class="tc tc-sql">sql_execute</span>
+        <span class="tc tc-py">pandas</span>
+        <span class="tc tc-py">numpy</span>
+        <span class="tc tc-py">scipy.stats</span>
+        <span class="tc tc-py">scipy.fft</span>
+        <span class="tc tc-py">sklearn</span>
+        <span class="tc tc-spcs">SPCS Container</span>
+      </div>
+
+      <div class="sa-label">Passes to Subagent 2</div>
+      <ul class="sa-list green">
+        <li>JSON profile: n_samples, n_features, avg_linearity, linearly_separable, fft_analysis, class_balance, high_correlation, missing_percent, numeric_features, categorical_features</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- SA2: Algorithm Recommender -->
+  <div class="sa-card c2">
+    <div class="sa-hdr">
+      <div class="sa-num">2</div>
+      Algorithm Recommender
+      <div class="sa-type">Subagent</div>
+    </div>
+    <div class="sa-body">
+      <div class="sa-desc">Scores 9 algorithms against the profile. Returns top 3 with scores, reasoning, strengths, and weaknesses. Lisa's <code>AlgorithmRecommender</code> class (~560 lines) lifts directly into this subagent's script.</div>
+
+      <div class="sa-label">What this subagent does</div>
+      <ul class="sa-list blue">
+        <li>Receives profile JSON from Subagent 1</li>
+        <li>Runs <code>score_algorithms.py</code> -- portable scoring engine</li>
+        <li>Scores each of 9 algorithms with weighted heuristics</li>
+        <li>Factors: linearity, sample size, feature types, FFT strength, class balance, multicollinearity</li>
+        <li>Ranks by composite score, returns top 3</li>
+      </ul>
+
+      <div class="sa-label">Tools &amp; Libraries</div>
+      <div>
+        <span class="tc tc-bash">bash (uv run)</span>
+        <span class="tc tc-py">Pure Python</span>
+      </div>
+
+      <div class="callout info" style="margin-top:12px;">
+        <span class="ci">&#128270;</span>
+        <span><strong>No Snowflake calls.</strong> This subagent runs purely on the profile dict. No SQL, no Snowpark. Lisa's code lifts as-is.</span>
+      </div>
+
+      <div class="sa-label">Passes to Subagent 3</div>
+      <ul class="sa-list green">
+        <li>Top algorithm key (e.g. "xgboost")</li>
+        <li>Full recommendation report for user</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- SA3: Model Trainer -->
+  <div class="sa-card c3">
+    <div class="sa-hdr">
+      <div class="sa-num">3</div>
+      Model Trainer
+      <div class="sa-type">Subagent</div>
+    </div>
+    <div class="sa-body">
+      <div class="sa-desc">Trains the recommended algorithm on the Snowflake table using <code>snowflake.ml</code>. Handles preprocessing (encoding, scaling), train/test split, model fitting, and evaluation. <strong>Replaces all 8 MCP training servers.</strong></div>
+
+      <div class="sa-label">What this subagent does</div>
+      <ul class="sa-list blue">
+        <li>Creates Snowpark DataFrame from the table</li>
+        <li>Auto-encodes categoricals (OrdinalEncoder / OneHotEncoder)</li>
+        <li>Train/test split (configurable ratio, default 80/20)</li>
+        <li>Selects correct <code>snowflake.ml.modeling</code> class based on algo key</li>
+        <li>Fits model on training data</li>
+        <li>Evaluates: accuracy, F1, precision, recall, AUC, confusion matrix</li>
+      </ul>
+
+      <div class="sa-label">Algorithm &rarr; snowflake.ml Mapping</div>
+      <ul class="sa-list purple">
+        <li><code>xgboost</code> &rarr; XGBClassifier</li>
+        <li><code>random_forest</code> &rarr; RandomForestClassifier</li>
+        <li><code>lightgbm</code> &rarr; LGBMClassifier</li>
+        <li><code>logistic_regression</code> &rarr; LogisticRegression</li>
+        <li><code>naive_bayes</code> &rarr; GaussianNB</li>
+        <li><code>svm_linear</code> / <code>svm_rbf</code> &rarr; SVC</li>
+      </ul>
+
+      <div class="sa-label">Tools &amp; Libraries</div>
+      <div>
+        <span class="tc tc-ml">snowflake.ml</span>
+        <span class="tc tc-py">Snowpark Python</span>
+        <span class="tc tc-sql">sql_execute</span>
+        <span class="tc tc-spcs">SPCS Container</span>
+      </div>
+
+      <div class="sa-label">Passes to Subagents 4 &amp; 5</div>
+      <ul class="sa-list green">
+        <li>Trained model object + metrics dict</li>
+        <li>Feature names used in training</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- SA4: Feature Reporter -->
+  <div class="sa-card c4">
+    <div class="sa-hdr">
+      <div class="sa-num">4</div>
+      Feature Reporter
+      <div class="sa-type">Subagent</div>
+    </div>
+    <div class="sa-body">
+      <div class="sa-desc">Extracts feature importances from the trained model. SHAP values for tree models, coefficients for linear models. Returns a ranked list of which features most drive pass/fail. This is the actionable "why" output.</div>
+
+      <div class="sa-label">What this subagent does</div>
+      <ul class="sa-list blue">
+        <li>Loads trained model from Subagent 3</li>
+        <li>Tree models: extract <code>feature_importances_</code></li>
+        <li>Optionally compute SHAP values (TreeExplainer)</li>
+        <li>Linear models: extract coefficients</li>
+        <li>Rank all features by absolute importance</li>
+        <li>Note direction of correlation (+/-) per feature</li>
+        <li>Generate plain-English summary for non-technical users</li>
+      </ul>
+
+      <div class="sa-label">Tools &amp; Libraries</div>
+      <div>
+        <span class="tc tc-py">Snowpark Python</span>
+        <span class="tc tc-py">shap</span>
+        <span class="tc tc-py">numpy</span>
+        <span class="tc tc-spcs">SPCS Container</span>
+      </div>
+
+      <div class="sa-label">Output to User</div>
+      <ul class="sa-list green">
+        <li>Top N features ranked by importance with scores</li>
+        <li>Direction of impact per feature</li>
+        <li>Summary: "The top driver of test failure is X with Y% importance"</li>
+      </ul>
+    </div>
+  </div>
+
+</div><!-- /sa-grid 2x2 -->
+
+<!-- SA5: Model Registry & Pipeline (full width) -->
+<div class="sa-grid full" style="margin-top:18px;">
+  <div class="sa-card c5">
+    <div class="sa-hdr">
+      <div class="sa-num">5</div>
+      Model Registry &amp; Inference Pipeline
+      <div class="sa-type">Subagent</div>
+    </div>
+    <div class="sa-body">
+      <div class="sa-desc">Registers the trained model in Snowflake Model Registry with versioning, metadata, and RBAC. Optionally sets up an inference pipeline so the model can score new data automatically. <em>Validate with Jenna: is this what they want for production use?</em></div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
+        <div>
+          <div class="sa-label">Register</div>
+          <ul class="sa-list blue">
+            <li>Log model to <code>snowflake.ml.registry</code></li>
+            <li>Attach metrics as metadata</li>
+            <li>Version the model (V1, V2, ...)</li>
+            <li>Tag with algorithm type + table source</li>
+          </ul>
+        </div>
+        <div>
+          <div class="sa-label">Govern</div>
+          <ul class="sa-list purple">
+            <li>Set RBAC: who can use the model</li>
+            <li>Attach lineage (source table &rarr; model)</li>
+            <li>Store training params + eval metrics</li>
+            <li>Enable model comparison (V1 vs V2)</li>
+          </ul>
+        </div>
+        <div>
+          <div class="sa-label">Inference (Optional)</div>
+          <ul class="sa-list green">
+            <li>Create UDF wrapping the model</li>
+            <li>Score new data: <code>SELECT model_predict(features) FROM new_data</code></li>
+            <li>Set up Task for scheduled batch scoring</li>
+            <li>Monitor drift via scheduled profiling</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="sa-label" style="margin-top:16px;">Tools &amp; Libraries</div>
+      <div>
+        <span class="tc tc-reg">Model Registry</span>
+        <span class="tc tc-ml">snowflake.ml</span>
+        <span class="tc tc-sql">sql_execute</span>
+        <span class="tc tc-py">Snowpark Python</span>
+        <span class="tc tc-spcs">SPCS Container</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════ 4. SUBAGENT BEST PRACTICES ═══════════ -->
+<h2 class="stitle"><span class="n">4</span> Why Separate Subagents? Best Practices</h2>
+<p class="sdesc">Each subagent is its own <code>.cortex/agents/*.md</code> file with a focused system prompt, scoped tools, and its own context window. This is how production Cortex Code agents are built.</p>
+
+<div class="two-col">
+  <div class="card">
+    <div class="card-hdr" style="background:#FEE2E2; color:#991B1B;">Anti-Pattern: One Big SKILL.md</div>
+    <div class="card-body">
+      <ul class="sa-list blue">
+        <li>All 5 steps defined inline in one file</li>
+        <li>Every step shares the same context window</li>
+        <li>Profiler's 5000 rows of FFT data pollute the trainer's context</li>
+        <li>All tools available to all steps (no scoping)</li>
+        <li>Harder to test, debug, or reuse individual steps</li>
+        <li>Context fills up fast &mdash; hits compaction before training finishes</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr" style="background:#DCFCE7; color:#166534;">Best Practice: Separate .cortex/agents/ Files</div>
+    <div class="card-body">
+      <ul class="sa-list green">
+        <li>Each agent has its own markdown file with focused system prompt</li>
+        <li>Each runs in its own context window &mdash; returns only a summary</li>
+        <li>Profiler returns JSON profile, trainer never sees raw FFT data</li>
+        <li>Tools scoped per agent (recommender is read-only, trainer gets write)</li>
+        <li>Each agent independently testable: "Use the ml-data-profiler on MY_TABLE"</li>
+        <li>CoCo auto-discovers agents when you <code>cd</code> into the repo</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<h3 style="font-size:15px; font-weight:700; color:var(--sf-dark); margin:24px 0 12px;">5 Subagent Best Practices</h3>
+
+<div class="sa-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+  <div class="card">
+    <div class="card-hdr" style="background:var(--sf-light); color:var(--sf-dark);">1. Single Responsibility</div>
+    <div class="card-body">
+      <p style="font-size:13px; color:var(--text2); line-height:1.6;">One agent = one job. The profiler profiles. The recommender recommends. The trainer trains. Clear input, clear output, clear handoff.</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr" style="background:#F3E8FF; color:#6B21A8;">2. Context Preservation</div>
+    <div class="card-body">
+      <p style="font-size:13px; color:var(--text2); line-height:1.6;">Each subagent runs in its own context window. Profiling 5000 rows of FFT data never floods the training step. Returns a summary, not raw output.</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr" style="background:#FEF3E2; color:#92400E;">3. Permission Hygiene</div>
+    <div class="card-body">
+      <p style="font-size:13px; color:var(--text2); line-height:1.6;">Scope tools per agent. Recommender: read-only. Trainer: write + SQL. Registrar: SQL + registry only. Minimizes blast radius of errors.</p>
+    </div>
+  </div>
+</div>
+
+<div class="sa-grid" style="grid-template-columns: 1fr 1fr; margin-top:16px;">
+  <div class="card">
+    <div class="card-hdr" style="background:#DCFCE7; color:#166534;">4. Cost Control via Model Routing</div>
+    <div class="card-body">
+      <p style="font-size:13px; color:var(--text2); line-height:1.6;">Route simple tasks to Haiku (fast, cheap). Route complex tasks to Sonnet. The algorithm recommender is pure Python scoring &mdash; Haiku handles it in seconds. The trainer needs reasoning about metrics &mdash; Sonnet.</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr" style="background:#FCE7F3; color:#9D174D;">5. Auto-Delegation via Description</div>
+    <div class="card-body">
+      <p style="font-size:13px; color:var(--text2); line-height:1.6;">CoCo reads each agent's <code>description</code> field to decide when to delegate. Write action-oriented descriptions: <em>"Profile a Snowflake table for ML readiness, computing linearity, FFT patterns, and class balance."</em></p>
+    </div>
+  </div>
+</div>
+
+<h3 style="font-size:15px; font-weight:700; color:var(--sf-dark); margin:24px 0 12px;">Tool Scoping Per Subagent</h3>
+
+<table class="cmp">
+  <thead>
+    <tr>
+      <th>Subagent</th>
+      <th class="pro">Tools Allowed</th>
+      <th class="pro">Model</th>
+      <th class="cur">Why</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Data Profiler</td>
+      <td><span class="tc tc-bash">Bash</span> <span class="tc tc-sql">sql_execute</span> <span class="tc tc-py">Read</span></td>
+      <td>Sonnet</td>
+      <td>Needs SQL + heavy compute for FFT analysis</td>
+    </tr>
+    <tr>
+      <td>Algorithm Recommender</td>
+      <td><span class="tc tc-bash">Bash</span> <span class="tc tc-py">Read</span></td>
+      <td>Haiku</td>
+      <td>Pure Python scoring &mdash; fast and cheap</td>
+    </tr>
+    <tr>
+      <td>Model Trainer</td>
+      <td><span class="tc tc-bash">Bash</span> <span class="tc tc-sql">sql_execute</span> <span class="tc tc-py">Read</span> <span class="tc tc-ml">Write</span></td>
+      <td>Sonnet</td>
+      <td>Needs snowflake.ml + write access + reasoning about metrics</td>
+    </tr>
+    <tr>
+      <td>Feature Reporter</td>
+      <td><span class="tc tc-bash">Bash</span> <span class="tc tc-sql">sql_execute</span> <span class="tc tc-py">Read</span></td>
+      <td>Sonnet</td>
+      <td>Needs SHAP computation + data access</td>
+    </tr>
+    <tr>
+      <td>Model Registrar</td>
+      <td><span class="tc tc-bash">Bash</span> <span class="tc tc-sql">sql_execute</span></td>
+      <td>Haiku</td>
+      <td>Registry calls only &mdash; fast and cheap</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 style="font-size:15px; font-weight:700; color:var(--sf-dark); margin:24px 0 12px;">How Auto-Delegation Works</h3>
+
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-hdr" style="background:var(--sf-light); color:var(--sf-dark);">Delegation Walkthrough</div>
+  <div class="card-body">
+    <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:6px; padding:16px 20px; font-size:13px; color:var(--text2); line-height:1.8;">
+      <strong style="color:var(--text);">User:</strong> Analyze MY_TABLE targeting PASS_FAIL and train the best model<br><br>
+      <strong style="color:var(--sf-dark);">CoCo:</strong> Reads SKILL.md &mdash; this matches the ml-auto-recommender workflow<br>
+      <span style="color:var(--muted);">SKILL.md says: first, profile the data</span><br><br>
+      <span style="color:var(--purple); font-weight:700;">&#9654; Delegates to <code>ml-data-profiler</code></span> <span style="color:var(--muted);">(own context, Sonnet, scoped tools)</span><br>
+      &nbsp;&nbsp;Profiler runs <code>profile_data.py</code>, computes FFT/linearity/class balance<br>
+      &nbsp;&nbsp;<strong style="color:var(--green);">Returns JSON summary</strong> &mdash; main context never sees 5000 rows of raw data<br><br>
+      <span style="color:var(--purple); font-weight:700;">&#9654; Delegates to <code>ml-algo-recommender</code></span> <span style="color:var(--muted);">(own context, <strong>Haiku</strong>, read-only)</span><br>
+      &nbsp;&nbsp;Recommender runs <code>score_algorithms.py</code> on the profile JSON<br>
+      &nbsp;&nbsp;<strong style="color:var(--green);">Returns top 3</strong> &mdash; agent explains reasoning to user, asks to proceed<br><br>
+      <span style="color:var(--purple); font-weight:700;">&#9654; Delegates to <code>ml-model-trainer</code></span> <span style="color:var(--muted);">(own context, Sonnet, full write access)</span><br>
+      &nbsp;&nbsp;Trainer runs <code>train_model.py</code>, notices class imbalance, adds <code>class_weight='balanced'</code><br>
+      &nbsp;&nbsp;<strong style="color:var(--green);">Returns metrics</strong> &mdash; agent evaluates, may retry if F1 &lt; 0.6<br><br>
+      <span style="color:var(--purple); font-weight:700;">&#9654; Delegates to <code>ml-feature-reporter</code></span> + <span style="color:var(--purple); font-weight:700;"><code>ml-model-registrar</code></span><br>
+      &nbsp;&nbsp;Feature report + model registration happen, results returned to user<br><br>
+      <strong style="color:var(--sf-dark);">Each step: own context &#8594; scoped tools &#8594; summary back to orchestrator</strong>
+    </div>
+  </div>
+</div>
+
+<div class="callout info">
+  <span class="ci">&#128270;</span>
+  <div>
+    <strong>Demo tip:</strong> To run this demo, just <code>cd dcgpu-ml-recommender</code> and start <code>cortex</code>. CoCo auto-discovers the <code>.cortex/agents/</code> files from the project directory. Type <code>/agents</code> to verify they're loaded. No global config changes needed &mdash; the repo <em>is</em> the demo environment.
+  </div>
+</div>
+
+
+<!-- ═══════════ 5. GITHUB PACKAGE STRUCTURE ═══════════ -->
+<h2 class="stitle"><span class="n">5</span> GitHub Package Structure</h2>
+<p class="sdesc">The deliverable repository. Everything needed to install, configure, and run the ML Auto-Recommender agent.</p>
+
+<div class="two-col">
+  <div class="tree">
+    <div class="t-title">Repository Layout</div>
+    <span class="t-dir">dcgpu-ml-recommender/</span><br>
+    &#9500;&#9472; <span class="t-hl">SKILL.md</span> <span class="t-cm"># lightweight orchestrator</span><br>
+    &#9500;&#9472; <span class="t-file">pyproject.toml</span> <span class="t-cm"># Python deps</span><br>
+    &#9500;&#9472; <span class="t-file">Dockerfile</span> <span class="t-cm"># SPCS container image</span><br>
+    &#9500;&#9472; <span class="t-file">spec.yaml</span> <span class="t-cm"># SPCS service spec</span><br>
+    &#9500;&#9472; <span class="t-hl">.cortex/agents/</span> <span class="t-cm"># 5 subagent definitions</span><br>
+    &#9474;&nbsp;&nbsp; &#9500;&#9472; <span class="t-file">ml-data-profiler.md</span><br>
+    &#9474;&nbsp;&nbsp; &#9500;&#9472; <span class="t-file">ml-algo-recommender.md</span><br>
+    &#9474;&nbsp;&nbsp; &#9500;&#9472; <span class="t-file">ml-model-trainer.md</span><br>
+    &#9474;&nbsp;&nbsp; &#9500;&#9472; <span class="t-file">ml-feature-reporter.md</span><br>
+    &#9474;&nbsp;&nbsp; &#9492;&#9472; <span class="t-file">ml-model-registrar.md</span><br>
+    &#9500;&#9472; <span class="t-dir">scripts/</span> <span class="t-cm"># tools the agents call</span><br>
+    &#9474;&nbsp;&nbsp; &#9500;&#9472; <span class="t-file">profile_data.py</span><br>
+    &#9474;&nbsp;&nbsp; &#9500;&#9472; <span class="t-file">score_algorithms.py</span><br>
+    &#9474;&nbsp;&nbsp; &#9500;&#9472; <span class="t-file">train_model.py</span><br>
+    &#9474;&nbsp;&nbsp; &#9500;&#9472; <span class="t-file">feature_report.py</span><br>
+    &#9474;&nbsp;&nbsp; &#9492;&#9472; <span class="t-file">register_model.py</span><br>
+    &#9500;&#9472; <span class="t-dir">setup/</span><br>
+    &#9474;&nbsp;&nbsp; &#9500;&#9472; <span class="t-file">01_create_db.sql</span><br>
+    &#9474;&nbsp;&nbsp; &#9500;&#9472; <span class="t-file">02_create_image_repo.sql</span><br>
+    &#9474;&nbsp;&nbsp; &#9492;&#9472; <span class="t-file">03_create_service.sql</span><br>
+    &#9492;&#9472; <span class="t-dir">docs/</span><br>
+    &nbsp;&nbsp;&nbsp; &#9492;&#9472; <span class="t-file">architecture.html</span>
+  </div>
+  <div>
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-hdr" style="background:var(--sf-light); color:var(--sf-dark);">Key Files Explained</div>
+      <div class="card-body">
+        <p style="font-size:13px; color:var(--text2); line-height:1.6; margin-bottom:10px;"><strong>SKILL.md</strong> &mdash; Lightweight orchestrator. Defines the workflow and when to delegate to each agent. No inline subagent prompts &mdash; those live in the agent files.</p>
+        <p style="font-size:13px; color:var(--text2); line-height:1.6; margin-bottom:10px;"><strong>.cortex/agents/*.md</strong> &mdash; 5 subagent definitions. Each has a <code>name</code>, <code>description</code>, scoped <code>tools</code> list, optional <code>model</code> override, and a focused system prompt. CoCo auto-discovers these from the project directory.</p>
+        <p style="font-size:13px; color:var(--text2); line-height:1.6; margin-bottom:10px;"><strong>scripts/*.py</strong> &mdash; The tools the agents call. Each is self-contained with argparse CLI args. Run via <code>uv run</code> or directly in the SPCS container.</p>
+        <p style="font-size:13px; color:var(--text2); line-height:1.6; margin-bottom:10px;"><strong>Dockerfile</strong> &mdash; Builds the SPCS image with all deps: scipy, shap, xgboost, lightgbm, snowflake-ml-python.</p>
+        <p style="font-size:13px; color:var(--text2); line-height:1.6;"><strong>setup/*.sql</strong> &mdash; One-time Snowflake setup: database, image repository, compute pool, SPCS service.</p>
+      </div>
+    </div>
+    <div class="callout ok">
+      <span class="ci">&#10003;</span>
+      <span><strong>To demo:</strong> <code>cd dcgpu-ml-recommender && cortex</code>. Type <code>/agents</code> to see all 5 loaded. Then: "Analyze MY_TABLE targeting PASS_FAIL and train the best model."</span>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════ 6. QUESTIONS FOR JENNA ═══════════ -->
+<h2 class="stitle"><span class="n">6</span> Validate with Jenna &amp; Lisa</h2>
+<p class="sdesc">Open questions to finalize before building.</p>
+
+<div class="two-col">
+  <div class="card">
+    <div class="card-hdr" style="background:var(--sf-light); color:var(--sf-dark);">Questions to Ask</div>
+    <div class="card-body">
+      <ul class="sa-list blue">
+        <li>Can we see 1-2 training server scripts (e.g., MCP_xgboost/server.py) to confirm hyperparams and preprocessing?</li>
+        <li>Is DCGPU test data already in Snowflake, or always starts as CSV upload?</li>
+        <li>What does the target column look like -- binary pass/fail, multi-class, or continuous?</li>
+        <li>Do they want inference on new data (Subagent 5), or just train + report?</li>
+        <li>Delivery surface preference: Cortex Code CLI, Streamlit app, React app, or Snowflake Intelligence?</li>
+        <li>Is SPCS available in their account/region?</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr" style="background:#FEF3E2; color:#92400E;">Assumptions to Confirm</div>
+    <div class="card-body">
+      <ul class="sa-list purple">
+        <li>"Run functions against data in Snowflake" = Snowflake compute, not just connecting to SF from local</li>
+        <li>Warehouse compute (not GPUs) is sufficient for tabular ML -- XGBoost/LightGBM on structured data</li>
+        <li>The 9 algorithm candidates are sufficient initially</li>
+        <li>SPCS is the right compute layer (vs. stored procedures with Anaconda packages)</li>
+        <li>Cortex Code Agent SDK is acceptable for headless orchestration (v0.1.0, beta)</li>
+        <li>Model Registry is the desired model storage (vs. just returning metrics)</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+
+<div class="footer">
+  DCGPU ML Auto-Recommender &mdash; Architecture Deep Dive &mdash; Prepared for Jenna &amp; Lisa
+</div>
+
+</div><!-- /page -->
+</body>
+</html>
