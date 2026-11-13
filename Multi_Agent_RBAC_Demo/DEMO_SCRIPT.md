@@ -52,16 +52,18 @@ front end: **your app → orchestrator → Snowflake MCP server → specialist a
 
 Across 18 runs per pattern:
 
-| | Before: stored procedure | Before: MCP full response | Now: MCP filtered + MCP Apps |
+| | Before: stored procedure | Before: MCP full response | **Now: MCP filtered + MCP Apps** |
 |---|---|---|---|
-| Orchestrator tokens | 93K | 40K | **1.1K** |
-| Full-price tokens | 74K | 66K | **22K** |
-| Total tokens | 429K | 289K | **258K** |
-| Charts in your app | after re-asking | — | **every answer** |
-| Correct answers | 67% | 100% | **100%** |
+| **Accuracy:** correct answers | 67% | 100% | **100%** |
+| **Cost:** credits per question | 0.246 | 0.233 | **0.139** |
+| **Cost:** credits per 1,000 questions | 246 | 233 | **139** |
+| **Cost:** orchestrator tokens | 93K | 40K | **1.1K** |
+| **Latency:** median / average | 35 s / 50 s | 28 s / 31 s | **21 s / 28 s** |
+| **Latency:** two-domain questions | 72 s | 44 s | **41 s** |
+| Chart in your app | after re-asking | — | **every answer** |
 
-> "The orchestrator's own cost drops 97%, and full-price tokens drop two thirds. What's left is the
-> specialists doing their actual work."
+> "Same accuracy, about 40% lower cost per question, and faster. The orchestrator's own tokens drop 97%.
+> What's left is the specialists doing their actual work."
 
 ## 6. How to adopt it (2 min) · slide 9
 

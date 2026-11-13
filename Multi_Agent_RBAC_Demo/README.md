@@ -62,20 +62,22 @@ specialist and two need two. 18 runs per pattern, Claude Sonnet. Averages per qu
 
 | | Before: stored procedure | Before: MCP full response | **Now: MCP filtered + MCP Apps** |
 |---|---|---|---|
-| Total tokens | 429K | 289K | **258K** |
-| Orchestrator tokens | 93K | 40K | **1.1K** |
-| Full-price (uncached) tokens | 74K | 66K | **22K** |
-| Response time | 50 s | 31 s | **28 s** |
-| Data back to the orchestrator | text only | ~137 KB per call | **~1.6 KB per call** |
-| Chart in your app | 83% | — | **100%** |
-| Correct answers | 67% | 100% | **100%** |
+| **Accuracy:** correct answers | 67% | 100% | **100%** |
+| **Cost:** credits per question | 0.246 | 0.233 | **0.139** |
+| **Cost:** credits per 1,000 questions | 246 | 233 | **139** |
+| **Cost:** orchestrator tokens | 93K | 40K | **1.1K** |
+| **Latency:** median / average | 35 s / 50 s | 28 s / 31 s | **21 s / 28 s** |
+| **Latency:** two-domain questions | 72 s | 44 s | **41 s** |
+| Chart in your app | after re-asking | — | **every answer** |
+
+Credits are from `SNOWFLAKE.ACCOUNT_USAGE.CORTEX_AGENT_USAGE_HISTORY` (billed per run, cached tokens at their lower rate). The MCP orchestrator's own calls, about 1% of the cost, are estimated at the same model's rates.
 
 What changed:
 
-- **vs the stored-procedure pattern:** 40% fewer tokens, 1.8x faster, and every answer exact. The procedure
+- **vs the stored-procedure pattern:** 43% lower cost, faster (21 s vs 35 s median), and every answer exact. The procedure
   pattern sometimes re-asked a specialist (up to 4 calls on a two-domain question) and rounded numbers.
-- **vs the full MCP response:** the orchestrator's own tokens drop 97% (40K → 1.1K), and full-price tokens
-  drop 66%. Total tokens drop 11%, because most of what remains is each specialist doing its own work.
+- **vs the full MCP response:** 40% lower cost. The orchestrator's own tokens drop 97% (40K → 1.1K), and those are
+  full-price tokens, which is why cost falls much more than the total token count (11%).
 - **Routing:** the orchestrator called exactly one specialist for single-domain questions and exactly two
   for two-domain questions.
 
