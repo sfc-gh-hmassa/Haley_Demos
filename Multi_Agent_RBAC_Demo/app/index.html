@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Multi-Agent: Before vs After</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root { --sf-blue:#29B5E8; --mid:#11567F; --navy:#0B2E45; --star:#75CDD7; --orange:#FF9F36;
+          --bg:#F5F8FA; --line:#E1E7EC; --text:#1F2A33; --muted:#5B6B78; --red:#D0453A; --green:#1E8E5A; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:Arial, Helvetica, sans-serif; background:var(--bg); color:var(--text); }
+  header { background:var(--mid); color:#fff; padding:14px 28px; display:flex; align-items:center; gap:14px; }
+  header .logo { width:28px; height:28px; border-radius:6px; background:var(--sf-blue); display:grid; place-items:center; font-weight:700; }
+  header h1 { font-size:18px; margin:0; font-weight:700; letter-spacing:.2px; }
+  header span { color:var(--star); font-size:13px; }
+  main { max-width:1400px; margin:0 auto; padding:22px 28px 40px; }
+  .ask { background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px; display:flex; gap:10px; }
+  .ask input { flex:1; font-size:15px; padding:11px 12px; border:1px solid var(--line); border-radius:8px; }
+  .ask button { background:var(--sf-blue); color:#fff; border:0; border-radius:8px; padding:0 22px; font-weight:700; cursor:pointer; font-size:14px; }
+  .ask button:disabled { opacity:.5; cursor:default; }
+  .samples { margin:10px 2px 0; display:flex; flex-wrap:wrap; gap:8px; }
+  .samples button { background:#fff; border:1px solid var(--line); color:var(--mid); border-radius:16px; padding:5px 12px; font-size:12px; cursor:pointer; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:18px; }
+  .panel { background:#fff; border:1px solid var(--line); border-radius:10px; overflow:hidden; display:flex; flex-direction:column; }
+  .panel .head { padding:12px 16px; border-bottom:1px solid var(--line); }
+  .panel .head .tag { font-size:11px; font-weight:700; letter-spacing:1.5px; }
+  .before .tag { color:var(--red); } .after .tag { color:var(--green); }
+  .panel .head h2 { margin:3px 0 2px; font-size:16px; }
+  .panel .head p { margin:0; font-size:12px; color:var(--muted); }
+  .flow { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); padding:10px 16px; background:#FAFCFD; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .flow b { background:#fff; border:1px solid var(--line); border-radius:6px; padding:3px 8px; color:var(--navy); font-weight:700; }
+  .body { padding:14px 16px; flex:1; }
+  .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:12px; }
+  .stat { border:1px solid var(--line); border-radius:8px; padding:8px 10px; }
+  .stat .n { font-size:20px; font-weight:700; color:var(--mid); }
+  .stat .l { font-size:11px; color:var(--muted); }
+  .before .stat.bad .n { color:var(--red); } .after .stat.good .n { color:var(--green); }
+  .answer { font-size:14px; line-height:1.5; margin-bottom:12px; }
+  .answer h1,.answer h2,.answer h3 { font-size:15px; color:var(--mid); margin:4px 0 8px; }
+  .answer p { margin:0 0 8px; }
+  .answer table { border-collapse:collapse; font-size:12px; margin:6px 0 10px; }
+  .answer th { background:var(--mid); color:#fff; padding:4px 8px; text-align:left; }
+  .answer td { border-bottom:1px solid var(--line); padding:4px 8px; }
+  .nochart { border:2px dashed var(--line); border-radius:8px; padding:26px; text-align:center; color:var(--muted); font-size:13px; margin-bottom:12px; }
+  .nochart b { color:var(--red); display:block; margin-bottom:4px; font-size:14px; }
+  .viz { border:1px solid var(--line); border-radius:8px; padding:10px; margin-bottom:12px; }
+  .viz .t { font-size:12px; font-weight:700; color:var(--mid); margin-bottom:6px; }
+  .viz .src { font-size:11px; color:var(--muted); font-weight:400; }
+  table.data { border-collapse:collapse; width:100%; font-size:12px; }
+  table.data th { background:var(--mid); color:#fff; text-align:left; padding:5px 8px; }
+  table.data td { border-bottom:1px solid var(--line); padding:5px 8px; }
+  details { border:1px solid var(--line); border-radius:8px; margin-top:6px; }
+  details summary { cursor:pointer; padding:8px 10px; font-size:12px; font-weight:700; color:var(--navy); }
+  details pre { margin:0; padding:10px; font-size:11px; background:#0B2E45; color:#D7EEF6; max-height:260px; overflow:auto; white-space:pre-wrap; word-break:break-all; }
+  .spin { color:var(--muted); font-size:13px; padding:30px 0; text-align:center; }
+  .err { color:var(--red); font-size:13px; }
+  .empty { color:var(--muted); font-size:13px; padding:30px 0; text-align:center; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="module">
+import React, { useState, useEffect, useRef } from "https://esm.sh/react@18.3.1";
+import { createRoot } from "https://esm.sh/react-dom@18.3.1/client";
+import htm from "https://esm.sh/htm@3.1.1";
+import embed from "https://esm.sh/vega-embed@6.26.0";
+import { marked } from "https://esm.sh/marked@12.0.2";
+import DOMPurify from "https://esm.sh/dompurify@3.1.6";
+const html = htm.bind(React.createElement);
+
+const SAMPLES = [
+  "Which 5 suppliers have the highest total purchase spend?",
+  "For the 5 suppliers with the highest purchase spend, what is their defect rate in PPM?",
+  "At the plant with the most parts below safety stock, what is the open backlog value?",
+  "What is the open backlog value by plant?",
+];
+const fmt = n => n >= 1000 ? `${(n / 1000).toFixed(n >= 100000 ? 0 : 1)}K` : `${n}`;
+
+function Chart({ spec }) {
+  const ref = useRef();
+  useEffect(() => {
+    if (ref.current) embed(ref.current, { ...spec, width: "container", height: 220 }, { actions: false }).catch(() => {});
+  }, [spec]);
+  return html`<div ref=${ref} style=${{ width: "100%" }}></div>`;
+}
+
+function Table({ b }) {
+  return html`<table className="data"><thead><tr>${b.columns.map(c => html`<th>${c}</th>`)}</tr></thead>
+    <tbody>${b.rows.slice(0, 10).map(r => html`<tr>${r.map(v => html`<td>${v}</td>`)}</tr>`)}</tbody></table>`;
+}
+
+function Panel({ kind, res, loading }) {
+  const before = kind === "before";
+  const flow = before
+    ? ["React app", "Orchestrator", "MCP (full response)", "Specialists"]
+    : ["React app", "Orchestrator", "MCP (table only)", "Specialists"];
+  let content;
+  if (loading) content = html`<div className="spin">Asking the specialists…</div>`;
+  else if (!res) content = html`<div className="empty">Ask a question to compare.</div>`;
+  else if (res.error) content = html`<div className="err">${res.error}</div>`;
+  else {
+    const s = res.stats;
+    const charts = res.visuals.filter(v => v.type === "chart");
+    const tables = res.visuals.filter(v => v.type === "table");
+    content = html`
+      <div className="stats">
+        <div className=${"stat " + (before ? "bad" : "good")}><div className="n">${fmt(s.orchestrator_tokens)}</div><div className="l">orchestrator tokens</div></div>
+        <div className=${"stat " + (before ? "bad" : "good")}><div className="n">${s.kb_to_orchestrator} KB</div><div className="l">sent back to orchestrator</div></div>
+        <div className="stat"><div className="n">${fmt(s.total_tokens)}</div><div className="l">total tokens</div></div>
+        <div className="stat"><div className="n">${s.seconds}s</div><div className="l">${res.specialists.length} specialist(s)</div></div>
+      </div>
+      <div className="answer" dangerouslySetInnerHTML=${{ __html: DOMPurify.sanitize(marked.parse(res.answer)) }}></div>
+      ${before
+        ? html`<div className="nochart"><b>No chart</b>The app only receives the orchestrator's text, so there is nothing to render.</div>`
+        : charts.map((c, i) => html`<div key=${i} className="viz"><div className="t">${c.title || "Chart"} <span className="src">· from ${c.agent} via MCP Apps</span></div><${Chart} spec=${c.spec} /></div>`)}
+      ${!before && tables.length ? html`<details><summary>Tables from MCP Apps (${tables.length})</summary>
+          <div style=${{ padding: 8 }}>${tables.map(t => html`<div className="t" style=${{ margin: "6px 0" }}>${t.title || t.agent}</div><${Table} b=${t} />`)}</div></details>` : ""}
+      ${res.received.map(r => html`<details key=${r.agent}><summary>What the orchestrator received from ${r.agent} (${(r.bytes / 1024).toFixed(1)} KB)</summary><pre>${r.preview}${r.bytes > 1500 ? "\n… (" + (r.bytes - 1500).toLocaleString() + " more characters)" : ""}</pre></details>`)}
+    `;
+  }
+  return html`<section className=${"panel " + kind}>
+    <div className="head">
+      <div className="tag">${before ? "BEFORE" : "AFTER"}</div>
+      <h2>${before ? "Specialists return their full response" : "Specialists return the table; charts via MCP Apps"}</h2>
+      <p>${before ? "Each specialist's semantic-view context and working notes land in the orchestrator's context window." : "The orchestrator reads a small table. The specialist's own chart goes straight to the app."}</p>
+    </div>
+    <div className="flow">${flow.map((f, i) => html`<${React.Fragment} key=${f}>${i ? "→" : ""}<b>${f}</b></${React.Fragment}>`)}</div>
+    <div className="body">${content}</div>
+  </section>`;
+}
+
+function App() {
+  const [q, setQ] = useState(SAMPLES[1]);
+  const [res, setRes] = useState({});
+  const [busy, setBusy] = useState({});
+  const ask = async question => {
+    setRes({}); setBusy({ before: true, after: true });
+    ["before", "after"].forEach(async mode => {
+      const r = await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify({ question, mode }) }).then(x => x.json());
+      setRes(p => ({ ...p, [mode]: r })); setBusy(p => ({ ...p, [mode]: false }));
+    });
+  };
+  useEffect(() => {  // ?q=<question> asks on load (handy for screen recordings)
+    const pre = new URLSearchParams(location.search).get("q");
+    if (pre) { setQ(pre); ask(pre); }
+  }, []);
+  const running = busy.before || busy.after;
+  return html`
+    <header><div className="logo">❄</div><h1>Multi-Agent on Cortex Agents</h1><span>Before vs after: same question, same specialists</span></header>
+    <main>
+      <div className="ask">
+        <input value=${q} onChange=${e => setQ(e.target.value)} onKeyDown=${e => e.key === "Enter" && !running && ask(q)} />
+        <button disabled=${running} onClick=${() => ask(q)}>${running ? "Running…" : "Ask both"}</button>
+      </div>
+      <div className="samples">${SAMPLES.map(s => html`<button key=${s} onClick=${() => { setQ(s); ask(s); }}>${s}</button>`)}</div>
+      <div className="grid">
+        <${Panel} kind="before" res=${res.before} loading=${busy.before} />
+        <${Panel} kind="after" res=${res.after} loading=${busy.after} />
+      </div>
+    </main>`;
+}
+createRoot(document.getElementById("root")).render(html`<${App} />`);
+</script>
+</body>
+</html>

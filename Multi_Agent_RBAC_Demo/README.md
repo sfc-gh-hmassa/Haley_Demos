@@ -137,17 +137,31 @@ $$;
 | `SPECIALIST_AGENTS_MCP` | The MCP server for the "before" (full response) and "now" (filtered) patterns |
 | `ORCHESTRATOR_TOOLSET` | Appendix: agent toolset pattern |
 
-**2. See it live.**
-- In Snowsight (**AI & ML → Agents**), ask `ORCHESTRATOR_SPROC`: *"For the 5 suppliers with the highest
-  purchase spend, what is their defect rate in PPM?"* Open the trace to see what comes back from each
-  specialist.
-- Connect Claude Desktop or Cortex Code Desktop to `SPECIALIST_AGENTS_MCP`, then ask `procurement_agent` the
-  spend question. The chart arrives as an interactive card.
+**2. Run the before/after app.** A small React app plays the role of your front end. It asks the same
+question two ways, side by side:
+
+- **Before:** specialists return their full response. Watch how much lands in the orchestrator, and note
+  that the app gets text with no chart.
+- **After:** specialists return only the result table. The orchestrator stays small, and the app draws each
+  specialist's chart from MCP Apps.
+
+```bash
+pip install -r requirements.txt
+export SNOWFLAKE_ACCOUNT=<org>-<account> SNOWFLAKE_PAT=<token>
+cd app && uvicorn server:app --port 8000      # open http://localhost:8000
+```
+
+The token stays in the local Python backend (`app/server.py`), which plays the orchestrator. The browser
+only talks to that backend. Expand *"What the orchestrator received"* on each side to see the actual payload.
+
+![Before vs after](docs/app_before_after.png)
+
+You can also connect Claude Desktop or Cortex Code Desktop to `SPECIALIST_AGENTS_MCP`, ask `procurement_agent`
+the spend question, and the chart arrives as an interactive card.
 
 **3. Measure it.** With a [programmatic access token](https://docs.snowflake.com/en/user-guide/programmatic-access-tokens):
 
 ```bash
-pip install -r requirements.txt
 export SNOWFLAKE_ACCOUNT=<org>-<account> SNOWFLAKE_USER=<user> SNOWFLAKE_PAT=<token>
 python3 measure.py --pattern all --reps 3      # writes results/results_all.csv
 ```
