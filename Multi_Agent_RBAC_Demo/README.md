@@ -5,6 +5,8 @@ specialist agents for each business domain. It explains what changed in the Snow
 why that lowers token cost, and how to move to the new approach. The demo builds the old and new approaches
 side by side so you can compare them in your own account.
 
+**Presenting this?** Follow [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md): a 15-minute walkthrough of the live app, the slides, and likely questions.
+
 ---
 
 ## Why teams build multi-agent
