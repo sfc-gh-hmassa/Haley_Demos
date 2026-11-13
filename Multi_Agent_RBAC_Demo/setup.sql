@@ -1144,6 +1144,11 @@ tools:
       readOnlyHint: true
       destructiveHint: false
 $$;
+-- Every question asked in the demo app is logged here (see metrics.sql).
+CREATE TABLE IF NOT EXISTS MULTIAGENT_DEMO.DEMO.DEMO_RUNS (
+  run_at TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP(), mode STRING, question STRING, specialists STRING,
+  orchestrator_tokens NUMBER, specialist_tokens NUMBER, total_tokens NUMBER, full_price_tokens NUMBER,
+  est_credits FLOAT, kb_to_orchestrator FLOAT, seconds FLOAT, charts NUMBER, specialist_thread_ids STRING);
 -- APPENDIX: orchestrator that borrows the specialists' tools (agent_toolset), for Snowflake Intelligence.
 CREATE OR REPLACE AGENT MULTIAGENT_DEMO.DEMO.ORCHESTRATOR_TOOLSET
   FROM SPECIFICATION $$

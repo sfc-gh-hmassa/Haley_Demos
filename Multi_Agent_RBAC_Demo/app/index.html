@@ -52,6 +52,16 @@
   details { border:1px solid var(--line); border-radius:8px; margin-top:6px; }
   details summary { cursor:pointer; padding:8px 10px; font-size:12px; font-weight:700; color:var(--navy); }
   details pre { margin:0; padding:10px; font-size:11px; background:#0B2E45; color:#D7EEF6; max-height:260px; overflow:auto; white-space:pre-wrap; word-break:break-all; }
+  .board { background:#fff; border:1px solid var(--line); border-radius:10px; margin-top:18px; overflow:hidden; }
+  .board .bh { display:flex; justify-content:space-between; align-items:center; padding:10px 16px; border-bottom:1px solid var(--line); }
+  .board .bh b { color:var(--navy); font-size:14px; }
+  .board .bh span { color:var(--muted); font-size:12px; }
+  .board table { width:100%; border-collapse:collapse; font-size:13px; }
+  .board th, .board td { padding:8px 16px; text-align:right; border-bottom:1px solid var(--line); }
+  .board th:first-child, .board td:first-child { text-align:left; color:var(--muted); font-weight:400; }
+  .board th { font-size:12px; color:var(--navy); }
+  .board td.win { color:var(--green); font-weight:700; }
+  .board td.delta { color:var(--green); font-weight:700; }
   .spin { color:var(--muted); font-size:13px; padding:30px 0; text-align:center; }
   .err { color:var(--red); font-size:13px; }
   .empty { color:var(--muted); font-size:13px; padding:30px 0; text-align:center; }
@@ -106,7 +116,7 @@ function Panel({ kind, res, loading }) {
       <div className="stats">
         <div className=${"stat " + (before ? "bad" : "good")}><div className="n">${fmt(s.orchestrator_tokens)}</div><div className="l">orchestrator tokens</div></div>
         <div className=${"stat " + (before ? "bad" : "good")}><div className="n">${s.kb_to_orchestrator} KB</div><div className="l">sent back to orchestrator</div></div>
-        <div className="stat"><div className="n">${fmt(s.total_tokens)}</div><div className="l">total tokens</div></div>
+        <div className="stat"><div className="n">${s.credits.toFixed(3)}</div><div className="l">credits (${fmt(s.total_tokens)} tokens)</div></div>
         <div className="stat"><div className="n">${s.seconds}s</div><div className="l">${res.specialists.length} specialist(s)</div></div>
       </div>
       <div className="answer" dangerouslySetInnerHTML=${{ __html: DOMPurify.sanitize(marked.parse(res.answer)) }}></div>
@@ -129,16 +139,39 @@ function Panel({ kind, res, loading }) {
   </section>`;
 }
 
+function Scoreboard({ m }) {
+  if (!m || m.error || !m.before || !m.after) return html`<div className="board"><div className="bh"><b>Running comparison</b>
+    <span>${m && m.error ? m.error : "Ask a question to start the scoreboard."}</span></div></div>`;
+  const b = m.before, a = m.after;
+  const lower = (x, y) => y ? `${Math.round((1 - x / y) * 100)}% lower` : "";
+  const rows = [
+    ["Cost (credits / question)", b.credits.toFixed(3), a.credits.toFixed(3), lower(a.credits, b.credits)],
+    ["Cost (credits / 1,000 questions)", (b.credits * 1000).toFixed(0), (a.credits * 1000).toFixed(0), ""],
+    ["Latency (median)", `${b.median_seconds.toFixed(0)} s`, `${a.median_seconds.toFixed(0)} s`, lower(a.median_seconds, b.median_seconds)],
+    ["Orchestrator tokens", fmt(Math.round(b.orchestrator_tokens)), fmt(Math.round(a.orchestrator_tokens)), lower(a.orchestrator_tokens, b.orchestrator_tokens)],
+    ["Sent back to orchestrator", `${b.kb_to_orchestrator.toFixed(0)} KB`, `${a.kb_to_orchestrator.toFixed(1)} KB`, lower(a.kb_to_orchestrator, b.kb_to_orchestrator)],
+    ["Answers with a chart in the app", `${Math.round(b.chart_rate * 100)}%`, `${Math.round(a.chart_rate * 100)}%`, ""],
+  ];
+  return html`<div className="board">
+    <div className="bh"><b>Running comparison</b><span>${b.runs + a.runs} runs logged to DEMO_RUNS · see metrics.sql for billed credits</span></div>
+    <table><thead><tr><th></th><th>Before</th><th>After</th><th>Change</th></tr></thead>
+    <tbody>${rows.map(r => html`<tr key=${r[0]}><td>${r[0]}</td><td>${r[1]}</td><td className="win">${r[2]}</td><td className="delta">${r[3]}</td></tr>`)}</tbody></table>
+  </div>`;
+}
+
 function App() {
   const [q, setQ] = useState(SAMPLES[1]);
   const [res, setRes] = useState({});
   const [busy, setBusy] = useState({});
+  const [metrics, setMetrics] = useState(null);
+  const loadMetrics = () => fetch("/api/metrics").then(x => x.json()).then(setMetrics).catch(() => {});
+  useEffect(() => { loadMetrics(); }, []);
   const ask = async question => {
     setRes({}); setBusy({ before: true, after: true });
     ["before", "after"].forEach(async mode => {
       const r = await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" },
                                           body: JSON.stringify({ question, mode }) }).then(x => x.json());
-      setRes(p => ({ ...p, [mode]: r })); setBusy(p => ({ ...p, [mode]: false }));
+      setRes(p => ({ ...p, [mode]: r })); setBusy(p => ({ ...p, [mode]: false })); loadMetrics();
     });
   };
   useEffect(() => {  // ?q=<question> asks on load (handy for screen recordings)
@@ -154,6 +187,7 @@ function App() {
         <button disabled=${running} onClick=${() => ask(q)}>${running ? "Running…" : "Ask both"}</button>
       </div>
       <div className="samples">${SAMPLES.map(s => html`<button key=${s} onClick=${() => { setQ(s); ask(s); }}>${s}</button>`)}</div>
+      <${Scoreboard} m=${metrics} />
       <div className="grid">
         <${Panel} kind="before" res=${res.before} loading=${busy.before} />
         <${Panel} kind="after" res=${res.after} loading=${busy.after} />

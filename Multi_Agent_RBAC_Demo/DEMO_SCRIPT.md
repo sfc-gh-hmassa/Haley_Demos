@@ -4,9 +4,9 @@
 still couldn't draw a chart. The Snowflake MCP server now returns just the answer table, and sends the
 specialist's chart straight to your app.
 
-**Live app:** the before/after app running in Snowflake (`MULTIAGENT_DEMO.DEMO.BEFORE_AFTER_APP`; get the
-URL with `SHOW ENDPOINTS IN SERVICE MULTIAGENT_DEMO.DEMO.BEFORE_AFTER_APP`). It's the same flow as a React
-front end: **your app → orchestrator → Snowflake MCP server → specialist agents**.
+**Live app:** run `./deploy.sh <warehouse>` once. It prints the app URL (also available with
+`SHOW ENDPOINTS IN SERVICE MULTIAGENT_DEMO.DEMO.BEFORE_AFTER_APP`). The flow is the same as a React front end:
+**your app → orchestrator → Snowflake MCP server → specialist agents**.
 
 **Slides:** [`docs/Multi-Agent_on_Cortex_Agents.pptx`](docs/Multi-Agent_on_Cortex_Agents.pptx)
 
@@ -45,7 +45,11 @@ front end: **your app → orchestrator → Snowflake MCP server → specialist a
 3. Expand **"What the orchestrator received"**:
    > "Now it's just the result table."
 
-## 5. What changed and the numbers (3 min) · slides 4–8
+## 5. What changed and the numbers (3 min) · scoreboard, then slides 4–8
+
+Scroll to **Running comparison** at the top of the app: the cost per question, latency and orchestrator
+tokens for every question asked so far, before vs after. To show the same numbers in SQL (including billed
+credits), open `metrics.sql` in a worksheet and run query 2.
 
 > "Two new MCP features do this. **Response filtering** (`content_cel_filter`) returns only the table, and
 > **MCP Apps** sends the chart to your app separately."
@@ -82,7 +86,8 @@ Across 18 runs per pattern:
 
 - **Resume the app** (if suspended):
   `ALTER COMPUTE POOL MULTIAGENT_DEMO_POOL RESUME; ALTER SERVICE MULTIAGENT_DEMO.DEMO.BEFORE_AFTER_APP RESUME;`
-- **Warm it up:** open the URL once and run one question; the first run takes about 40 seconds.
+- **Reset the scoreboard:** `TRUNCATE TABLE MULTIAGENT_DEMO.DEMO.DEMO_RUNS;`
+- **Warm it up:** open the URL and run one question; the first run takes about 40 seconds.
 - **Have a backup:** if the network is shaky, keep the screenshot (`docs/app_before_after.png`) ready.
 - **After the call**, suspend both to stop cost:
   `ALTER SERVICE MULTIAGENT_DEMO.DEMO.BEFORE_AFTER_APP SUSPEND; ALTER COMPUTE POOL MULTIAGENT_DEMO_POOL SUSPEND;`
