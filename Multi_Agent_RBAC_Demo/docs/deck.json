@@ -1,0 +1,513 @@
+{
+  "metadata": {
+    "title": "Multi-Agent Delegation on Cortex Agents",
+    "author": "Snowflake"
+  },
+  "slides": [
+    {
+      "type": "title",
+      "title": "Multi-Agent Delegation on Cortex Agents",
+      "subtitle": "Before / after architecture, how we tested, and what we found",
+      "author": "Snowflake Solutions Engineering"
+    },
+    {
+      "type": "table",
+      "title": "The headline: before vs after",
+      "headers": [
+        "",
+        "Before: SP wrappers",
+        "After: agent_toolset",
+        "After: MCP + MCP Apps"
+      ],
+      "rows": [
+        [
+          "Tokens / question",
+          "806K",
+          "257K",
+          "256K"
+        ],
+        [
+          "vs agent_toolset",
+          "3.1x",
+          "1.00",
+          "0.97"
+        ],
+        [
+          "Latency",
+          "102 s",
+          "23 s",
+          "25 s"
+        ],
+        [
+          "Charts",
+          "re-calls until it can chart prose",
+          "native",
+          "sub-agent chart passed through"
+        ],
+        [
+          "At 14 domains",
+          "\u2014",
+          "1.53x",
+          "0.95x"
+        ]
+      ]
+    },
+    {
+      "type": "numberedPoints",
+      "kicker": "THE PROBLEM",
+      "title": "What the architecture has to do",
+      "points": [
+        {
+          "number": "1",
+          "header": "Isolate context",
+          "body": "Each domain sub-agent owns ~17\u201319K-token semantic views. They should not land in the master's context window."
+        },
+        {
+          "number": "2",
+          "header": "Return structure, not text",
+          "body": "The front end needs tables and charts from sub-agent results, not a text summary."
+        },
+        {
+          "number": "3",
+          "header": "Scale to many domains",
+          "body": "14 domains \u00d7 AGG/BASE views \u2248 30 analyst tools. Cost and routing must hold up."
+        }
+      ],
+      "footerNote": {
+        "title": "THE CONCERN",
+        "body": "Observed 60\u201370% higher token use with MCP-based sub-agent calls, plus concern that agent_toolset flattens every tool into the master."
+      }
+    },
+    {
+      "type": "section",
+      "title": "Before",
+      "subtitle": "Current patterns and where cost comes from"
+    },
+    {
+      "type": "architecture",
+      "title": "Before: SP wrapper returns text only",
+      "boxes": [
+        {
+          "id": "ui",
+          "label": "User / CoWork",
+          "x": 0.3,
+          "y": 1.5,
+          "w": 1.6,
+          "h": 0.8,
+          "color": "PRIMARY_BLUE"
+        },
+        {
+          "id": "m",
+          "label": "Master agent\ncustom tools",
+          "x": 2.3,
+          "y": 1.5,
+          "w": 1.9,
+          "h": 0.8,
+          "color": "PRIMARY_BLUE"
+        },
+        {
+          "id": "mcp",
+          "label": "CALL_SALES_AGENT (SP)\nDATA_AGENT_RUN",
+          "x": 4.6,
+          "y": 1.5,
+          "w": 2.2,
+          "h": 0.8,
+          "color": "ACCENT_BLUE"
+        },
+        {
+          "id": "s",
+          "label": "Sales sub-agent\nSV ~17.5K tok",
+          "x": 7.3,
+          "y": 1.5,
+          "w": 2.3,
+          "h": 0.8,
+          "color": "ACCENT_BLUE"
+        },
+        {
+          "id": "p",
+          "label": "Text only \u2192 data_to_chart fails \u2192\nmaster re-calls sub-agent 1\u20139x (~200K tok each)",
+          "x": 2.3,
+          "y": 3.3,
+          "w": 4.5,
+          "h": 0.9,
+          "color": "C0392B"
+        }
+      ],
+      "arrows": [
+        {
+          "from": "ui",
+          "to": "m"
+        },
+        {
+          "from": "m",
+          "to": "mcp"
+        },
+        {
+          "from": "mcp",
+          "to": "s"
+        },
+        {
+          "from": "mcp",
+          "to": "p"
+        }
+      ]
+    },
+    {
+      "type": "twocolumn",
+      "title": "Before: what teams were doing",
+      "leftTitle": "SP wrappers around DATA_AGENT_RUN",
+      "leftItems": [
+        "Custom tool \u2192 procedure \u2192 sub-agent",
+        "Returns text only",
+        "data_to_chart fails on prose, so the master re-calls the sub-agent",
+        "3.1x tokens, 4.4x latency vs agent_toolset"
+      ],
+      "rightTitle": "MCP sub-agents with filter = full",
+      "rightItems": [
+        "Sub-agents run in isolated loops",
+        "But ~142 KB of trace comes back per call",
+        "Master re-reads the SV context and chart skill",
+        "1.16x tokens, 4x uncached"
+      ]
+    },
+    {
+      "type": "section",
+      "title": "How we tested",
+      "subtitle": "Same data, same questions, every pattern"
+    },
+    {
+      "type": "pipeline",
+      "kicker": "METHOD",
+      "title": "Benchmark design",
+      "steps": [
+        {
+          "label": "Build",
+          "caption": "Synthetic sales + inventory; SVs padded to ~17.5K tokens"
+        },
+        {
+          "label": "Agents",
+          "caption": "2 sub-agents, toolset master, single agent; 14-agent scale set"
+        },
+        {
+          "label": "Run",
+          "caption": "4 questions \u00d7 2\u20133 reps per pattern; 124 runs, 0 errors"
+        },
+        {
+          "label": "Measure",
+          "caption": "Tokens (incl. cache reads), payload bytes, latency, chart, correctness"
+        }
+      ],
+      "arrows": [
+        "create",
+        "call via REST / MCP",
+        "parse usage"
+      ],
+      "footerNote": {
+        "title": "TOKEN SOURCE",
+        "body": "Every number is metadata.usage.tokens_consumed from the agent run, plus Cortex inference usage for the client-side master. Correctness is checked against ground-truth SQL."
+      }
+    },
+    {
+      "type": "table",
+      "title": "Patterns compared",
+      "headers": [
+        "ID",
+        "Pattern",
+        "What comes back to the master"
+      ],
+      "rows": [
+        [
+          "E (before)",
+          "Custom tools \u2192 SP \u2192 DATA_AGENT_RUN",
+          "Sub-agent text only"
+        ],
+        [
+          "A",
+          "Single agent, all semantic views",
+          "n/a (one agent)"
+        ],
+        [
+          "B",
+          "agent_toolset over sub-agents",
+          "n/a (tools flattened)"
+        ],
+        [
+          "C-full",
+          "MCP delegation, content_cel_filter=full",
+          "Entire sub-agent trace"
+        ],
+        [
+          "C-compact",
+          "MCP delegation, compact",
+          "Text + table + chart blocks"
+        ],
+        [
+          "C-table",
+          "MCP delegation, CEL table-only",
+          "Typed result_set only"
+        ],
+        [
+          "D",
+          "MCP delegation + MCP Apps (preview)",
+          "Table to model; chart to UI via _mcp_app"
+        ]
+      ]
+    },
+    {
+      "type": "section",
+      "title": "What we found",
+      "subtitle": ""
+    },
+    {
+      "type": "table",
+      "title": "Results: two domains",
+      "headers": [
+        "Pattern",
+        "Tokens / question",
+        "vs agent_toolset",
+        "Payload to master",
+        "Chart"
+      ],
+      "rows": [
+        [
+          "E: SP wrappers (before)",
+          "806K",
+          "3.1",
+          "text only",
+          "re-calls 1\u20139x"
+        ],
+        [
+          "A: single agent",
+          "278K",
+          "1.08",
+          "\u2014",
+          "native"
+        ],
+        [
+          "B: agent_toolset",
+          "257K",
+          "1.00",
+          "\u2014",
+          "native"
+        ],
+        [
+          "C: MCP full",
+          "297K",
+          "1.16 (4x uncached)",
+          "142 KB",
+          "rebuilt"
+        ],
+        [
+          "C: MCP compact",
+          "253K",
+          "0.99",
+          "4.4 KB",
+          "rebuilt"
+        ],
+        [
+          "C: MCP table-only",
+          "252K",
+          "0.98",
+          "1.7 KB",
+          "rebuilt"
+        ],
+        [
+          "D: MCP Apps",
+          "256K",
+          "0.97",
+          "1.8 KB",
+          "sub-agent's chart"
+        ]
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Results: 14 domains / 30 tools",
+      "headers": [
+        "Pattern",
+        "Tokens / question",
+        "vs 2-domain B",
+        "Why"
+      ],
+      "rows": [
+        [
+          "B: agent_toolset",
+          "392K",
+          "1.53",
+          "~29K of flattened tool definitions re-sent each turn (cached)"
+        ],
+        [
+          "C: MCP table-only",
+          "252K",
+          "0.98",
+          "Master sees agent descriptions + ~1.7 KB results"
+        ],
+        [
+          "D: MCP Apps",
+          "252K",
+          "0.95",
+          "Same as C; chart goes straight to the UI"
+        ]
+      ]
+    },
+    {
+      "type": "numberedPoints",
+      "kicker": "FINDINGS",
+      "title": "What the data says",
+      "points": [
+        {
+          "number": "1",
+          "header": "SP wrappers cost 3.1x",
+          "body": "Text-only returns force the master to re-call sub-agents: 806K tokens and 102 s per question vs 257K and 23 s."
+        },
+        {
+          "number": "2",
+          "header": "Few domains: agent_toolset is fine",
+          "body": "No extra cost versus the alternatives. Semantic views are fetched only for the selected tool."
+        },
+        {
+          "number": "3",
+          "header": "'full' caused the MCP penalty",
+          "body": "Each call returned ~142 KB of trace. compact or a CEL filter cuts it by 97\u201399%."
+        },
+        {
+          "number": "4",
+          "header": "At scale, delegation stays flat",
+          "body": "agent_toolset +53% at 30 tools. MCP delegation ~0.95\u20130.98x."
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "title": "After",
+      "subtitle": "Recommended architecture"
+    },
+    {
+      "type": "architecture",
+      "title": "After: MCP delegation + CEL filter + MCP Apps",
+      "boxes": [
+        {
+          "id": "ui",
+          "label": "React app\nrenders Vega-Lite",
+          "x": 0.3,
+          "y": 1.5,
+          "w": 1.7,
+          "h": 0.85,
+          "color": "PRIMARY_BLUE"
+        },
+        {
+          "id": "m",
+          "label": "Master orchestrator\n~1K tokens of results",
+          "x": 2.4,
+          "y": 1.5,
+          "w": 2.0,
+          "h": 0.85,
+          "color": "PRIMARY_BLUE"
+        },
+        {
+          "id": "mcp",
+          "label": "Managed MCP server\ntable-only / compact",
+          "x": 4.8,
+          "y": 1.5,
+          "w": 2.1,
+          "h": 0.85,
+          "color": "ACCENT_BLUE"
+        },
+        {
+          "id": "s",
+          "label": "Domain sub-agents 1..N\nown SVs + data_to_chart",
+          "x": 7.3,
+          "y": 1.5,
+          "w": 2.3,
+          "h": 0.85,
+          "color": "ACCENT_BLUE"
+        },
+        {
+          "id": "c",
+          "label": "_mcp_app: sub-agent chart + table blocks\ngo straight to the UI (not the model)",
+          "x": 2.4,
+          "y": 3.3,
+          "w": 4.5,
+          "h": 0.9,
+          "color": "2E8B57"
+        }
+      ],
+      "arrows": [
+        {
+          "from": "ui",
+          "to": "m"
+        },
+        {
+          "from": "m",
+          "to": "mcp"
+        },
+        {
+          "from": "mcp",
+          "to": "s"
+        },
+        {
+          "from": "mcp",
+          "to": "c"
+        },
+        {
+          "from": "c",
+          "to": "ui"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Architecture decision guide",
+      "headers": [
+        "Situation",
+        "Recommendation"
+      ],
+      "rows": [
+        [
+          "Using SP / DATA_AGENT_RUN wrappers today",
+          "Replace them (3.1x tokens, lossy numbers)"
+        ],
+        [
+          "2\u20135 sub-agents, few tools each",
+          "agent_toolset: simplest, native charts, same cost"
+        ],
+        [
+          "Many domains with near-duplicate views (AGG/BASE)",
+          "Consolidate semantic views to 4\u20136 domains, keep agent_toolset"
+        ],
+        [
+          "Many domains, need isolation",
+          "MCP delegation with compact or a CEL filter"
+        ],
+        [
+          "Sub-agent charts in your own UI",
+          "MCP Apps: render _mcp_app blocks or host ui://snowflake/cortex/view"
+        ],
+        [
+          "Agent-to-agent calls",
+          "Never use content_cel_filter = full"
+        ]
+      ]
+    },
+    {
+      "type": "content",
+      "title": "Caveats and next steps",
+      "bullets": [
+        ">>>Caveats",
+        "Synthetic data; semantic views padded to realistic size, not real complexity",
+        "Client-side master is a minimal router; a heavier orchestrator adds tokens",
+        "Cache reads are discounted, so B-at-scale dollar impact is smaller than token counts suggest",
+        "MCP Apps is in preview; rendering validated via API, not yet in a desktop client",
+        ">>>Next steps",
+        "Run the repo against your semantic views and questions",
+        "Enable MCP Apps on your account and wire _mcp_app into the React app",
+        "Decide: consolidate views vs. MCP delegation for the 14-domain rollout"
+      ]
+    },
+    {
+      "type": "thankyou",
+      "title": "Questions?",
+      "subtitle": "Benchmark repo: cortex-multiagent-delegation-demo"
+    }
+  ]
+}

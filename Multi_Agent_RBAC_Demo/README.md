@@ -1,186 +1,125 @@
-# Multi-Agent RBAC Demo
+# Multi-Agent on Cortex Agents: the cost of the architecture decision
 
-Demonstrates how Cortex Agents respect row-level security policies in Snowflake. An orchestrator agent routes queries to specialized sub-agents (Sales, Finance, HR), and each user sees only the data their role permits.
+How you connect a master agent to domain sub-agents decides what you pay. This demo measures the
+pattern many teams start with (sub-agents wrapped in `DATA_AGENT_RUN` stored procedures) against the
+patterns we recommend now, on the same data and the same questions.
 
-## Demo Questions to Ask
+## Before vs after
 
-### Single-Agent Questions (Orchestrator routes to one agent)
+| | **Before**: stored-procedure wrappers | **After**: `agent_toolset` | **After**: MCP delegation + MCP Apps |
+|---|---|---|---|
+| How the master reaches a sub-agent | Custom tool → SP → `DATA_AGENT_RUN` → text | Inherits the sub-agents' tools | Managed MCP server `CORTEX_AGENT_RUN` with a CEL filter |
+| Tokens / question | **806K** | **257K** | **256K** |
+| vs agent_toolset | **3.1x** | 1.00 | 0.97 |
+| Latency | **102 s** | 23 s | 25 s |
+| Sub-agent calls / question | 3.1 (up to 9) | n/a | 1 per domain |
+| Charts | Master re-asks sub-agents until it can chart from prose | Native `data_to_chart` | Sub-agent's own Vega-Lite chart in `_mcp_app` |
+| Exact numbers | Often rounded ("~50.9M"), 6/12 exact | 11/12 exact | 12/12 exact |
+| At 14 domains / 30 tools | Not tested (cost scales with calls) | 1.53x | **0.95x** |
 
-**Sales Questions:**
-- "What are my top sales opportunities?"
-- "Show me deals in the pipeline"
-- "What sales do I have access to?"
-- "Who are my top performing sales reps?"
+**Why "before" is expensive:** the wrapper returns only the sub-agent's text. The master's
+`data_to_chart` can't chart prose, so it calls the sub-agent again ("give me exact column names",
+"return the raw table") until it gets something it can use. Each extra call is a full sub-agent run
+of about 200K tokens, because the sub-agent reloads its ~17.5K-token semantic view and orchestrates
+from scratch.
 
-**Finance Questions:**
-- "Show me the budget summary"
-- "Which departments are over budget?"
-- "What's our Q1 spending?"
+**The fix:** don't flatten sub-agents into text.
+- **Few domains:** use `agent_toolset`. The master runs the sub-agents' tools directly, so it has native
+  charts and pays for each semantic view only when it's used.
+- **Many domains, or an external orchestrator / React app:** use MCP delegation, with
+  `content_cel_filter` set to table-only or `compact`. Add MCP Apps (preview) so the sub-agent's chart
+  reaches the UI without passing through the master's context.
+- **Never** use `content_cel_filter: full` for agent-to-agent calls. It returns ~142 KB of trace per call
+  (1.16x, and 4x uncached).
 
-**HR Questions:**
-- "How many employees do I have access to?"
-- "Show me the team roster"
-- "Who was hired recently?"
-
-### Multi-Agent Questions (Orchestrator routes to multiple agents)
-- "Give me a complete business overview - sales pipeline, budget status, and team size"
-- "What's happening across sales and finance?"
-- "Show me everything I have access to"
-
-### RBAC Demo Questions (Show different results per role)
-
-| Question | SALES_WEST_ROLE sees | EXECUTIVE_ROLE sees |
-|----------|---------------------|---------------------|
-| "Show my sales" | Only WEST region deals | All regions |
-| "Show the budget" | Only SALES dept budget | All departments |
-| "Show employees" | Only WEST region staff | All employees |
-
-### Demo Flow Script
-
-1. **Login as EXECUTIVE_USER** → "Show me all sales opportunities"
-   - Shows all 15 opportunities across all regions
-   
-2. **Login as SALES_REP_WEST** → "Show me all sales opportunities"  
-   - Shows only 5 WEST region opportunities
-   
-3. **Ask orchestrator** → "What's my sales pipeline and current budget?"
-   - Routes to both SALES_AGENT and FINANCE_AGENT
-   - Each returns data filtered by the user's role
+Full method and numbers: [`docs/findings.md`](docs/findings.md). Slides:
+[`docs/multiagent-delegation-findings.pptx`](docs/multiagent-delegation-findings.pptx).
 
 ## Architecture
 
 ```
-                          USER QUERY
-                               │
-                               ▼
-                    ┌─────────────────────┐
-                    │  ORCHESTRATOR_AGENT │
-                    │   (Routes queries)  │
-                    └──────────┬──────────┘
-                               │
-           ┌───────────────────┼───────────────────┐
-           │                   │                   │
-           ▼                   ▼                   ▼
-    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-    │ SALES_AGENT │    │FINANCE_AGENT│    │  HR_AGENT   │
-    │             │    │             │    │             │
-    │ Opportunities│   │   Budget    │    │  Employees  │
-    │ (by Region) │    │ (by Dept)   │    │(by Dept/Rgn)│
-    └─────────────┘    └─────────────┘    └─────────────┘
-           │                   │                   │
-           ▼                   ▼                   ▼
-    ┌─────────────────────────────────────────────────┐
-    │            ROW ACCESS POLICIES                   │
-    │  User sees only data their role permits          │
-    └─────────────────────────────────────────────────┘
+BEFORE                                         AFTER (pick one)
+                                               ┌───────────────── agent_toolset ─────────────────┐
+Master agent                                   │ Master agent  ── inherits ──▶ sub-agent tools   │
+  └─ custom tool: CALL_SALES_AGENT (SP)        │   (native data_to_chart, SVs loaded on demand)  │
+       └─ DATA_AGENT_RUN(SALES_AGENT)          └─────────────────────────────────────────────────┘
+            └─ returns TEXT only               ┌──────────── MCP delegation + MCP Apps ──────────┐
+  └─ data_to_chart fails on prose              │ Orchestrator ─▶ MCP server ─▶ sub-agents (1..N) │
+  └─ re-calls sub-agent 2–9x                   │   model gets table-only (~1.7 KB)               │
+                                               │   UI gets _mcp_app chart + table (~3 KB)        │
+                                               └─────────────────────────────────────────────────┘
 ```
 
-## Key Features
+## What's in here
 
-- **Caller's Rights**: Stored procedures use `EXECUTE AS CALLER` so row policies apply based on the calling user's role
-- **Thread Tracking**: Each call includes a `threadId` for monitoring in Snowsight
-- **DATA_AGENT_RUN**: Uses SQL function instead of REST API for nested agent calls
-
-## Roles and Access
-
-| Role | Sales Data | Finance Data | HR Data |
-|------|------------|--------------|---------|
-| SALES_WEST_ROLE | WEST region only | SALES dept only | WEST region only |
-| SALES_EAST_ROLE | EAST region only | None | EAST region only |
-| SALES_MANAGER_ROLE | All regions | SALES dept only | SALES dept only |
-| FINANCE_ANALYST_ROLE | None | All except EXECUTIVE | None |
-| HR_ROLE | None | HR dept only | All except EXECUTIVE |
-| EXECUTIVE_ROLE | All | All | All |
-
-## Setup
-
-### 1. Run the setup script
-```sql
--- Run sql/setup.sql in Snowsight or SnowSQL
+```
+setup/      gen_setup.py, gen_scale.py   generate setup.sql / setup_scale.sql
+            run_setup.py                 deploy them and refresh benchmark ground truth
+bench/      bench_sproc.py               BEFORE: SP-wrapped sub-agents (E)
+            bench.py                     single agent (A), agent_toolset (B), MCP full/compact/table-only (C)
+            bench_apps.py                MCP Apps (D) vs B and C
+            bench_scale.py               B vs C at 14 domains / 30 tools
+            client.py, questions.json    REST/MCP clients, questions + ground truth
+results/    *.csv, summarize.py          our measured results
+docs/       findings.md, *.pptx          write-up and slides
+legacy/                                  the original stored-procedure + RBAC demo, for reference
 ```
 
-### 2. Create Agents in Snowsight UI
+Objects created (in `MULTIAGENT_DEMO.BENCH`):
 
-Navigate to **AI & ML → Agents** and create:
+| Object | Pattern |
+|---|---|
+| `SALES_AGENT`, `INVENTORY_AGENT` | Domain sub-agents (analyst + `data_to_chart`), ~17.5K-token semantic views each |
+| `MASTER_SPROC_AGENT` + `CALL_*_AGENT` procedures | **Before** |
+| `MASTER_TOOLSET_AGENT` | After: `agent_toolset` |
+| `BENCH_MCP` (MCP server) | After: MCP delegation (+ MCP Apps if enabled) |
+| `SINGLE_AGENT` | Baseline |
+| `*_SCALE` objects (optional) | 14-domain scale test |
 
-#### SALES_AGENT
-- **Database**: MULTI_AGENT_RBAC_DEMO
-- **Schema**: AGENTS
-- **About**: "Sales data agent - queries opportunities based on user access"
-- **Semantic Model**: Add your sales semantic model YAML
+## Run it
 
-#### FINANCE_AGENT
-- **Database**: MULTI_AGENT_RBAC_DEMO
-- **Schema**: AGENTS
-- **About**: "Finance data agent - queries budget data based on user access"
-- **Semantic Model**: Add your finance semantic model YAML
+Prerequisites:
+- Cortex Agents with `claude-sonnet-4-6`
+- A warehouse
+- ACCOUNTADMIN, or a role that can create databases, agents, procedures and MCP servers
+- A programmatic access token (PAT)
+- **MCP Apps** is a preview feature; ask your account team to enable it for pattern D
 
-#### HR_AGENT
-- **Database**: MULTI_AGENT_RBAC_DEMO
-- **Schema**: AGENTS
-- **About**: "HR data agent - queries employee data based on user access"
-- **Semantic Model**: Add your HR semantic model YAML
+```bash
+pip install snowflake-connector-python requests pandas tabulate
 
-#### ORCHESTRATOR_AGENT
-- **Database**: MULTI_AGENT_RBAC_DEMO
-- **Schema**: AGENTS
-- **About**: "Main orchestrator agent - routes queries to specialized sub-agents"
-- **Tools**: Add custom tools pointing to the stored procedures:
-  - `CALL_SALES_AGENT(VARCHAR)` → TOOLS schema
-  - `CALL_FINANCE_AGENT(VARCHAR)` → TOOLS schema
-  - `CALL_HR_AGENT(VARCHAR)` → TOOLS schema
+export SNOWFLAKE_ACCOUNT=<org>-<account>  SNOWFLAKE_USER=<user>  SNOWFLAKE_PAT=<token>
+export SNOWFLAKE_HOST=https://<org>-<account>.snowflakecomputing.com
+export DEMO_WAREHOUSE=<warehouse>
 
-### 3. Run agent grants (Part 11 in setup.sql)
-
-After creating agents, run the GRANT statements from Part 11.
-
-## Testing
-
-### Test as different roles:
-```sql
--- As Sales West Rep
-USE ROLE SALES_WEST_ROLE;
-CALL MULTI_AGENT_RBAC_DEMO.TOOLS.CALL_SALES_AGENT('show my deals');
--- Returns only WEST region opportunities
-
--- As Executive
-USE ROLE EXECUTIVE_ROLE;
-CALL MULTI_AGENT_RBAC_DEMO.TOOLS.CALL_SALES_AGENT('show all deals');
--- Returns all opportunities
+cd setup && python3 gen_scale.py && python3 run_setup.py          # add --scale for the 14-domain set
+cd ../bench
+python3 bench_sproc.py 3    # BEFORE   -> results_sproc.csv (sequential)
+python3 bench.py 3          # AFTER    -> results.csv
+python3 bench_apps.py 3     # MCP Apps -> results_apps.csv
+python3 bench_scale.py 2    # scale    -> results_scale.csv (needs --scale)
 ```
 
-### Test orchestrator:
-```sql
--- Query the orchestrator in Snowsight UI
--- "What are my top sales opportunities and current budget?"
--- Will route to both SALES_AGENT and FINANCE_AGENT
-```
+### Try it live (Snowsight or CoWork)
 
-## Technical Notes
+Ask `MASTER_SPROC_AGENT`, then `MASTER_TOOLSET_AGENT`:
+*"Show me sales by product for the top 5 products."*
 
-### Thread ID
-The stored procedures include `threadId` in the DATA_AGENT_RUN payload for tracking:
-- Use camelCase `threadId` (not `thread_id` with underscore)
-- Track in Snowsight Monitoring tab
+The trace for the stored-procedure agent shows `data_to_chart` failing on text and the sub-agent being
+called repeatedly. The toolset agent answers in one pass with a native chart.
 
-### JSON Payload Format
-```json
-{
-  "threadId": "uuid-string",
-  "messages": [{
-    "role": "user",
-    "content": [{"type": "text", "text": "query here"}]
-  }]
-}
-```
+## How tokens are measured
 
-### Error Handling
-Procedures return error details if DATA_AGENT_RUN fails:
-```
-ERROR: <message> | SQLCODE: <code>
-```
+- **Agent runs:** `metadata.usage.tokens_consumed` from each run (input, output and cache reads).
+- **Before (E):** the wrapper procedures write each sub-agent run's usage to `SUBAGENT_USAGE_LOG`, and the
+  master's usage comes from its own run. Runs are sequential so log rows can be attributed to the right run.
+- **MCP master (C, D):** `usage` from `/api/v2/cortex/inference:complete`.
+- **Correctness:** label and value within 0.5% of ground-truth SQL, recomputed on every deploy.
 
-## Files
+## Caveats
 
-- `sql/setup.sql` - Complete setup script with all DDL, data, and grants
-- `README.md` - This file
+- Synthetic data. The semantic views are padded to a realistic size, not a realistic complexity.
+- The C/D master is a minimal Python router. A heavier orchestrator adds tokens.
+- Cache reads are billed at a discount, so token ratios overstate dollar gaps.
+- The number of "before" re-calls varies by run (1–9). The 3.1x is the mean over 12 runs.
+- MCP Apps is in preview.

@@ -1,0 +1,13 @@
+arch,qid,rep,secs,master_in,master_out,sub_in,sub_out,cache_read,total_tokens,subagent_calls,payload_to_master_bytes,chart,correct,error
+E_sproc_text_only,q1_top5_sales,0,118.4,322042,4513,610439,2590,817394,939584,4,0,True,True,
+E_sproc_text_only,q2_inv_by_plant,0,99.1,207380,3088,600070,3287,651360,813825,3,0,True,True,
+E_sproc_text_only,q3_rev_by_region,0,69.9,163363,2598,395408,1806,479359,563175,2,0,True,True,
+E_sproc_text_only,q4_cross_domain,0,117.6,104268,6444,597637,2988,543442,711337,3,0,True,True,
+E_sproc_text_only,q1_top5_sales,1,131.4,288632,7684,593351,2566,697539,892233,3,0,True,False,
+E_sproc_text_only,q2_inv_by_plant,1,47.1,122070,2309,199305,912,274526,324596,1,0,True,False,
+E_sproc_text_only,q3_rev_by_region,1,105.7,253998,4327,592917,2628,733096,853870,3,0,True,False,
+E_sproc_text_only,q4_cross_domain,1,216.5,224007,7784,1698244,7863,1565025,1937898,9,0,True,True,
+E_sproc_text_only,q1_top5_sales,2,103.5,232736,4550,593451,2625,712138,833362,3,0,True,False,
+E_sproc_text_only,q2_inv_by_plant,2,71.4,164105,3115,398343,1621,418865,567184,2,0,True,False,
+E_sproc_text_only,q3_rev_by_region,2,40.8,119385,1508,197612,854,271383,319359,1,0,True,False,
+E_sproc_text_only,q4_cross_domain,2,105.1,116200,5058,795955,4013,701168,921226,4,0,True,True,
