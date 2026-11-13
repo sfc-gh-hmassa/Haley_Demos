@@ -8,8 +8,10 @@ orchestrator, calling the specialist agents through the managed MCP server.
   after:  specialists return only the result table. The orchestrator reads that, and the app gets the
           specialists' charts and tables from MCP Apps (structuredContent._mcp_app).
 
-Run:  export SNOWFLAKE_ACCOUNT=<org>-<account> SNOWFLAKE_PAT=<token>
-      uvicorn server:app --port 8000      then open http://localhost:8000
+Run locally:  export SNOWFLAKE_ACCOUNT=<org>-<account> SNOWFLAKE_PAT=<token>
+              uvicorn server:app --port 8000      then open http://localhost:8000
+In Snowflake: deployed as a Snowpark Container Services service (see spcs/), which uses the service's own
+              OAuth token, so no PAT is needed.
 """
 import json
 import os
@@ -21,13 +23,25 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-ACCOUNT = os.environ["SNOWFLAKE_ACCOUNT"]
-HOST = f"https://{ACCOUNT.lower().replace('_', '-')}.snowflakecomputing.com"
-PAT = os.environ["SNOWFLAKE_PAT"]
+TOKEN_FILE = "/snowflake/session/token"  # present when running as a Snowpark Container Services service
+IN_SPCS = os.path.exists(TOKEN_FILE)
+if IN_SPCS:  # the service's own OAuth token and Snowflake's internal endpoint; no secrets in the image
+    HOST = f"https://{os.environ['SNOWFLAKE_HOST']}"
+else:
+    HOST = f"https://{os.environ['SNOWFLAKE_ACCOUNT'].lower().replace('_', '-')}.snowflakecomputing.com"
 DB, SC = os.environ.get("DEMO_DB", "MULTIAGENT_DEMO"), os.environ.get("DEMO_SCHEMA", "DEMO")
 MODEL = "claude-sonnet-4-6"
-HDRS = {"Authorization": f"Bearer {PAT}", "X-Snowflake-Authorization-Token-Type": "PROGRAMMATIC_ACCESS_TOKEN",
-        "Content-Type": "application/json", "Accept": "application/json"}
+
+
+def headers():
+    if IN_SPCS:  # the token rotates, so read it on every call
+        token, kind = open(TOKEN_FILE).read().strip(), "OAUTH"
+    else:
+        token, kind = os.environ["SNOWFLAKE_PAT"], "PROGRAMMATIC_ACCESS_TOKEN"
+    return {"Authorization": f"Bearer {token}", "X-Snowflake-Authorization-Token-Type": kind,
+            "Content-Type": "application/json", "Accept": "application/json"}
+
+
 MCP_URL = f"{HOST}/api/v2/databases/{DB}/schemas/{SC}/mcp-servers/SPECIALIST_AGENTS_MCP"
 FILTERS = {"before": "full", "after": "content.filter(c, c.type == 'table')"}
 SPECIALISTS = {
@@ -55,7 +69,7 @@ http.mount("https://", requests.adapters.HTTPAdapter(
 
 def complete(prompt):
     body = {"model": MODEL, "stream": False, "messages": [{"role": "user", "content": prompt}]}
-    r = http.post(f"{HOST}/api/v2/cortex/inference:complete", headers=HDRS, json=body, timeout=600)
+    r = http.post(f"{HOST}/api/v2/cortex/inference:complete", headers=headers(), json=body, timeout=600)
     r.raise_for_status()
     j = r.json()
     u = j.get("usage", {})
@@ -64,7 +78,7 @@ def complete(prompt):
 
 def mcp_call(tool, args):
     body = {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": tool, "arguments": args}}
-    r = http.post(MCP_URL, headers=HDRS, json=body, timeout=900)
+    r = http.post(MCP_URL, headers=headers(), json=body, timeout=900)
     r.raise_for_status()
     j = r.json()
     if "error" in j:

@@ -152,7 +152,12 @@ cd app && uvicorn server:app --port 8000      # open http://localhost:8000
 ```
 
 The token stays in the local Python backend (`app/server.py`), which plays the orchestrator. The browser
-only talks to that backend. Expand *"What the orchestrator received"* on each side to see the actual payload.
+only talks to that backend.
+
+**Or run it in Snowflake.** [`app/spcs_service.sql`](app/spcs_service.sql) deploys the same app as a Snowpark
+Container Services service, with no Docker build. It uses the stock Python image, mounts the app code from a
+stage, and calls Cortex with the service's own token. Open the endpoint URL and sign in with your Snowflake
+user. Expand *"What the orchestrator received"* on each side to see the actual payload.
 
 ![Before vs after](docs/app_before_after.png)
 
