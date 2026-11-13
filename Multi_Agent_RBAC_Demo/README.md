@@ -1,184 +1,176 @@
 # Multi-Agent with Cortex Agents: What's Changed
 
-This guide is for teams that already run a multi-agent setup on Cortex Agents: an orchestrator agent that
-calls specialist agents for each business domain. It explains what changed in the Snowflake-managed MCP
-server, why that lowers token cost, and how to move to the new approach. It comes with a demo you can run
-to see the difference in your own account.
+This guide is for teams that already run a multi-agent setup on Cortex Agents: an orchestrator that calls
+specialist agents for each business domain. It explains what changed in the Snowflake-managed MCP server,
+why that lowers token cost, and how to move to the new approach. The demo builds the old and new approaches
+side by side so you can compare them in your own account.
 
 ---
 
 ## Why teams build multi-agent
 
-Most organizations don't have one data domain. They have several, such as sales, spend, inventory, quality
-and supply chain, and each is owned by a different team with its own semantic views and business rules.
+A manufacturer's data lives in several domains, such as procurement, supplier quality, inventory and customer
+orders. Each is owned by a different team with its own semantic views and business rules. A multi-agent
+design lets each team own an agent for its domain, while users get **one place to ask**. An orchestrator
+picks the specialists a question needs, combines their answers, and returns a chart your app can show.
 
-A multi-agent design lets each team own an agent for its domain, while users get **one place to ask
-questions**. An orchestrator decides which specialist agents to involve and combines their answers,
-ideally with a chart the user's app can display.
+## What was happening before
 
-## The problem with the original approach
+There were two common ways for an orchestrator to call specialist agents:
 
-Until recently, there were two common ways to have an orchestrator call specialist agents:
-
-1. **Wrap each specialist in a stored procedure** that calls `DATA_AGENT_RUN`, and give the orchestrator
-   those procedures as tools.
-2. **Call each specialist through the managed MCP server**, which by default returned the specialist's
-   full response.
-
-Both work, but both send too much, or the wrong thing, back to the orchestrator:
-
-- **Answers come back as text.** The specialist's table and chart are flattened into prose. The orchestrator
-  can't chart prose, so it asks the specialist again, and each repeat is a full agent run. Numbers often come
-  back rounded.
-- **Or the entire response comes back.** With the full MCP response, the orchestrator receives everything the
-  specialist did: its semantic model context, chart instructions, SQL and text. That's about 140 KB per call,
-  and the orchestrator has to read all of it.
-
-That is where the extra tokens were coming from.
+| | Stored procedure + `DATA_AGENT_RUN` | MCP server, full response |
+|---|---|---|
+| How | A custom tool runs a procedure that calls the specialist agent | The orchestrator calls each specialist through the managed MCP server |
+| What comes back | The specialist's written answer only | Everything the specialist did: semantic model context, chart instructions, SQL, text (~137 KB per call) |
+| Effect | The orchestrator can't chart text, so it often asks the specialist again (each repeat is a full agent run), and numbers come back rounded | The orchestrator reads and pays for all of it on every call |
 
 ## What's changed
 
-The Snowflake-managed MCP server now gives the orchestrator control over what comes back, and can deliver
-charts directly to your app.
+The Snowflake-managed MCP server now lets the orchestrator decide what comes back, and can send charts
+directly to your app.
 
-| New capability | What it does | Why it cuts tokens |
+| Capability | What it does | Why it cuts tokens |
 |---|---|---|
-| **Response filtering** (`content_cel_filter`) | Choose what each specialist returns: `compact`, or only the result table. `compact` is now the default. | The orchestrator reads ~2 KB, not ~140 KB, per specialist call. |
-| **Fetch more later** (`AGENT_RUN_RESULT`) | Retrieve other parts of a finished run only if you need them. | You pay to read detail only when it's used. |
-| **MCP Apps** (preview) | The specialist's finished chart and table are delivered to your app, separately from what the orchestrator reads. | The orchestrator never handles the chart, and nobody rebuilds it. |
-| **Background runs** (`background: true`) | Long questions run asynchronously and can be polled. | Avoids client timeouts and retries. |
+| **Response filtering** (`content_cel_filter`) | Return only the result table, or a `compact` answer (now the default) | The orchestrator reads ~1.6 KB instead of ~137 KB per call |
+| **`AGENT_RUN_RESULT`** | Fetch other parts of a finished run later | You pay for detail only when it's used |
+| **MCP Apps** (preview) | The specialist's finished chart and table go straight to your app | Charts never pass through the orchestrator |
+| **Background runs** | Long questions run asynchronously and can be polled | No client timeouts and retries |
 
 ```mermaid
 flowchart LR
     App[Your app] --> O[Orchestrator]
-    O -->|question| M[Snowflake MCP server]
-    M --> S[Specialist agents]
-    S -->|result table only, ~2 KB| O
-    S -.->|chart + table via MCP Apps| App
+    O -->|picks specialists| M[Snowflake MCP server]
+    M --> P[Procurement agent]
+    M --> Q[Supplier Quality agent]
+    M --> I[Inventory agent]
+    M --> C[Customer Orders agent]
+    P -->|small result table| O
+    Q -->|small result table| O
+    P -.->|chart via MCP Apps| App
+    Q -.->|chart via MCP Apps| App
 ```
 
-The specialist still does its own work with its own semantic views. Only a small, structured result travels
-back to the orchestrator, and the chart goes straight to the screen.
+Each specialist still does its own work with its own semantic view. Only a small table travels back to the
+orchestrator, and the chart goes straight to the screen.
 
-## What the difference looks like
+## Results
 
-Same data, same questions, same model (Claude Sonnet). Each specialist uses a realistically sized semantic
-view (~17K tokens). Averages per question:
+Four independent specialist agents, each with a ~15K-token semantic view. Six questions: four need one
+specialist and two need two. 18 runs per pattern, Claude Sonnet. Averages per question:
 
-| | Stored-procedure wrappers | MCP, full response | **MCP, filtered + MCP Apps** |
+| | Before: stored procedure | Before: MCP full response | **Now: MCP filtered + MCP Apps** |
 |---|---|---|---|
-| Tokens per question | ~806K | ~297K | **~256K** |
-| Response time | ~102 s | ~26 s | **~25 s** |
-| Data sent back to the orchestrator | text only | ~140 KB per call | **~2 KB per call** |
-| Chart in your app | no | buried in the full response | **yes, delivered separately** |
-| Exact numbers | often rounded | yes | **yes** |
-| With 14 specialist agents | — | — | **no increase** |
+| Total tokens | 429K | 289K | **258K** |
+| Orchestrator tokens | 93K | 40K | **1.1K** |
+| Full-price (uncached) tokens | 74K | 66K | **22K** |
+| Response time | 50 s | 31 s | **28 s** |
+| Data back to the orchestrator | text only | ~137 KB per call | **~1.6 KB per call** |
+| Chart in your app | 83% | — | **100%** |
+| Correct answers | 67% | 100% | **100%** |
 
-Moving from stored-procedure wrappers to filtered MCP plus MCP Apps used **about 70% fewer tokens** and
-answered **about 4x faster**. Compared with the full MCP response, it cut about 14% of tokens. The tokens
-billed at the full (uncached) rate dropped by about half, because the orchestrator stopped re-reading
-large payloads.
+What changed:
 
-> **If you use Snowflake Intelligence / CoWork as your front end with a handful of specialists,**
-> attaching specialists with `agent_toolset` is also a good option: it costs about the same and charts
-> natively. It grows more expensive as you add many specialists (about 1.5x at 14 agents), which is where
-> the MCP approach holds steady.
+- **vs the stored-procedure pattern:** 40% fewer tokens, 1.8x faster, and every answer exact. The procedure
+  pattern sometimes re-asked a specialist (up to 4 calls on a two-domain question) and rounded numbers.
+- **vs the full MCP response:** the orchestrator's own tokens drop 97% (40K → 1.1K), and full-price tokens
+  drop 66%. Total tokens drop 11%, because most of what remains is each specialist doing its own work.
+- **Routing:** the orchestrator called exactly one specialist for single-domain questions and exactly two
+  for two-domain questions.
 
 ## How to move to the new approach
 
-1. **Keep your specialist agents as they are.** Make sure each has `data_to_chart` and SQL execution tools,
-   so it can produce a table and a chart.
-2. **Expose them through a managed MCP server**, one `CORTEX_AGENT_RUN` tool per specialist, with a clear
-   description of when to use it.
-3. **In your orchestrator, set `content_cel_filter`** on each call: `compact`, or only the table
-   (`content.filter(c, c.type == 'table')`). Never use `full` for agent-to-agent calls.
-4. **Render charts from MCP Apps.** Read `structuredContent._mcp_app.blocks` from each result. It contains
-   a ready-to-draw Vega-Lite chart spec and the table rows, so your app draws them directly.
-5. **Retire the stored-procedure wrappers** once the MCP path is in place.
-
-Example MCP server:
+1. **Keep your specialist agents.** Make sure each has `data_to_chart` so it can produce a chart.
+2. **Expose them through one managed MCP server,** one `CORTEX_AGENT_RUN` tool per specialist, each with a
+   clear description of when to use it.
+3. **In the orchestrator, set `content_cel_filter`** to the result table (`content.filter(c, c.type == 'table')`)
+   or `compact`. Don't use `full` for agent-to-agent calls.
+4. **Draw charts from MCP Apps.** Each result's `structuredContent._mcp_app.blocks` contains a ready-to-draw
+   Vega-Lite chart spec and the table rows.
+5. **Retire the stored-procedure wrappers.**
 
 ```sql
-CREATE MCP SERVER my_db.my_schema.domain_agents FROM SPECIFICATION $$
+CREATE MCP SERVER my_db.my_schema.specialist_agents FROM SPECIFICATION $$
 tools:
-  - name: "sales_agent"
+  - name: "procurement_agent"
     type: "CORTEX_AGENT_RUN"
-    identifier: "MY_DB.MY_SCHEMA.SALES_AGENT"
-    title: "Sales"
-    description: "Revenue, orders and units by product, region and date"
-  - name: "inventory_agent"
+    identifier: "MY_DB.MY_SCHEMA.PROCUREMENT_AGENT"
+    title: "Procurement"
+    description: "Purchase orders, spend, units and prices by supplier, part, plant and date"
+  - name: "supplier_quality_agent"
     type: "CORTEX_AGENT_RUN"
-    identifier: "MY_DB.MY_SCHEMA.INVENTORY_AGENT"
-    title: "Inventory"
-    description: "On-hand stock, safety stock and inventory value by product and plant"
+    identifier: "MY_DB.MY_SCHEMA.SUPPLIER_QUALITY_AGENT"
+    title: "Supplier Quality"
+    description: "Inspections, defects, defect rate (PPM) and NCRs by supplier, part and plant"
 $$;
 ```
-
-Example call from your orchestrator:
 
 ```json
 {
   "jsonrpc": "2.0", "id": 1, "method": "tools/call",
   "params": {
-    "name": "sales_agent",
+    "name": "procurement_agent",
     "arguments": {
-      "text": "Top 5 products by revenue",
+      "text": "Which 5 suppliers have the highest total purchase spend?",
       "content_cel_filter": "content.filter(c, c.type == 'table')"
     }
   }
 }
 ```
 
-The orchestrator reads the small table in `content`. Your app draws the chart from `structuredContent._mcp_app`.
-
 ---
 
 ## Try it yourself
 
-The demo builds the old and new approaches side by side, so you can compare them in your account.
-
 **You'll need:**
-- Cortex Agents with Claude Sonnet
+- A Snowflake account with Cortex Agents and Claude Sonnet
 - A warehouse
 - A role that can create databases, agents, procedures and MCP servers
-- A [programmatic access token](https://docs.snowflake.com/en/user-guide/programmatic-access-tokens)
-- Python 3.10+
-- MCP Apps enabled on the account (ask your Snowflake account team)
+- MCP Apps enabled on the account (preview; ask your Snowflake account team)
+
+**1. Create the demo objects.** Open [`setup.sql`](setup.sql) in a Snowsight worksheet, replace
+`COMPUTE_WH` with your warehouse name, and run all. It creates `MULTIAGENT_DEMO.DEMO` with:
+
+| Object | What it is |
+|---|---|
+| `PROCUREMENT_AGENT`, `SUPPLIER_QUALITY_AGENT`, `INVENTORY_AGENT`, `ORDERS_AGENT` | The four specialist agents, each with its own semantic view |
+| `ORCHESTRATOR_SPROC` + `ASK_*_AGENT` procedures | Before: stored-procedure pattern |
+| `SPECIALIST_AGENTS_MCP` | The MCP server for the "before" (full response) and "now" (filtered) patterns |
+| `ORCHESTRATOR_TOOLSET` | Appendix: agent toolset pattern |
+
+**2. See it live.**
+- In Snowsight (**AI & ML → Agents**), ask `ORCHESTRATOR_SPROC`: *"For the 5 suppliers with the highest
+  purchase spend, what is their defect rate in PPM?"* Open the trace to see what comes back from each
+  specialist.
+- Connect Claude Desktop or Cortex Code Desktop to `SPECIALIST_AGENTS_MCP`, then ask `procurement_agent` the
+  spend question. The chart arrives as an interactive card.
+
+**3. Measure it.** With a [programmatic access token](https://docs.snowflake.com/en/user-guide/programmatic-access-tokens):
 
 ```bash
-pip install snowflake-connector-python requests pandas tabulate
-
-export SNOWFLAKE_ACCOUNT=<org>-<account>
-export SNOWFLAKE_USER=<user>
-export SNOWFLAKE_PAT=<token>
-export SNOWFLAKE_HOST=https://<org>-<account>.snowflakecomputing.com
-export DEMO_WAREHOUSE=<warehouse>
-
-cd setup && python3 gen_scale.py && python3 run_setup.py    # builds MULTIAGENT_DEMO.BENCH
+pip install -r requirements.txt
+export SNOWFLAKE_ACCOUNT=<org>-<account> SNOWFLAKE_USER=<user> SNOWFLAKE_PAT=<token>
+python3 measure.py --pattern all --reps 3      # writes results/results_all.csv
 ```
 
-**See it live.** In Snowsight, ask `MASTER_SPROC_AGENT` (the old approach):
-*"Show me sales by product for the top 5 products."* Open the trace, and you'll see the chart step fail on
-text and the sales agent being called again. Then connect Claude Desktop or Cortex Code Desktop to the
-`BENCH_MCP` server and ask `sales_agent` the same question. The chart arrives as an interactive card.
+`measure.py` asks the six questions in [`questions.json`](questions.json) through each pattern. For each
+answer it records tokens, response time, data returned to the orchestrator, whether a chart arrived, and
+whether the answer matched the true value.
 
-**Measure it.**
+**4. Clean up:** `DROP DATABASE IF EXISTS MULTIAGENT_DEMO;`
 
-```bash
-cd ../bench
-python3 bench_sproc.py 3    # old: stored-procedure wrappers
-python3 bench.py 3          # MCP with full / compact / table-only responses
-python3 bench_apps.py 3     # MCP + MCP Apps
-python3 ../results/summarize.py
-```
+Slides: [`docs/Multi-Agent_on_Cortex_Agents.pptx`](docs/Multi-Agent_on_Cortex_Agents.pptx)
 
-**Clean up:** `DROP DATABASE IF EXISTS MULTIAGENT_DEMO;`
+## Appendix: agent toolsets
 
-More detail: [docs/findings.md](docs/findings.md) · Slides: [docs/multiagent-delegation-findings.pptx](docs/multiagent-delegation-findings.pptx)
+If Snowflake Intelligence is your front end, you can also attach the specialists to an orchestrator with
+`agent_toolset`. The orchestrator borrows their tools and runs them itself, with native charts. In this test
+it averaged 247K tokens and 20 s per question. It works well with a handful of specialists. With many, every
+borrowed tool is listed on each step, so cost grows. For your own app, use the MCP approach above.
 
 ## Notes
 
-- The data is synthetic. Your numbers will vary with your semantic views, questions and models.
-- Token counts include cached tokens, which are billed at a discount.
+- The data is synthetic and deterministic, so the true answers in `questions.json` match every deploy.
+  Your numbers will vary with your semantic views, questions and models.
+- Token counts include cached tokens, which are billed at a discount. "Full-price tokens" excludes them.
 - MCP Apps is a preview feature and its behavior may change.
 - The earlier version of this demo is in [`legacy/`](legacy/).

@@ -1,0 +1,58 @@
+[
+  {
+    "id": "q1_spend",
+    "domains": [
+      "procurement"
+    ],
+    "question": "Which 5 suppliers have the highest total purchase spend?",
+    "gt_label": "SUP-041",
+    "gt_value": 8803807.89
+  },
+  {
+    "id": "q2_quality",
+    "domains": [
+      "supplier_quality"
+    ],
+    "question": "Which 5 suppliers have the worst defect rate in PPM?",
+    "gt_label": "SUP-004",
+    "gt_value": 1165.148945
+  },
+  {
+    "id": "q3_inventory",
+    "domains": [
+      "inventory"
+    ],
+    "question": "How many part-plant positions are below safety stock at each plant?",
+    "gt_label": "Lisle",
+    "gt_value": 100.0
+  },
+  {
+    "id": "q4_orders",
+    "domains": [
+      "orders"
+    ],
+    "question": "What is the open backlog value by plant?",
+    "gt_label": "Lisle",
+    "gt_value": 12129370.1
+  },
+  {
+    "id": "q5_spend_x_quality",
+    "domains": [
+      "procurement",
+      "supplier_quality"
+    ],
+    "question": "For the 5 suppliers with the highest purchase spend, what is their defect rate in PPM?",
+    "gt_label": "SUP-041",
+    "gt_value": 1003.020223
+  },
+  {
+    "id": "q6_inventory_x_orders",
+    "domains": [
+      "inventory",
+      "orders"
+    ],
+    "question": "At the plant with the most parts below safety stock, what is the open backlog value?",
+    "gt_label": "Lisle",
+    "gt_value": 12129370.1
+  }
+]
